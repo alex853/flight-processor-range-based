@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+//    id 'application'
+}
+
+group = 'net.simforge.networkview'
+version = '0.0.1'
+sourceCompatibility = '1.8'
+
+//application {
+//    mainClassName = 'net.simforge.commons.runtime.TaskExecutor'
+//}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven {
+        url 'https://mymavenrepo.com/repo/9k6aQjU4o2RPUv5zfolv/' // simforge repo read url
+    }
+}
+
+dependencies {
+//    implementation 'net.simforge:simforge-commons:latest.release'
+//    implementation 'net.simforge:simforge-commons-ext:latest.release'
+//    implementation 'net.simforge:network-view-core:latest.release'
+
+//    implementation 'postgresql:postgresql:9.1-901-1.jdbc4'
+//    implementation 'ch.qos.logback:logback-classic:1.1.7'
+//    implementation 'org.ehcache:ehcache:3.3.1'
+//    implementation 'com.google.code.gson:gson:2.8.6'
+
+    testImplementation 'junit:junit:4.11'
+}
