@@ -23,11 +23,11 @@ dependencies {
     implementation 'net.simforge:simforge-commons:latest.release'
 //    implementation 'net.simforge:simforge-commons-ext:latest.release'
     implementation 'net.simforge:simforge-atmosphere:latest.release'
-    implementation 'net.simforge:refdata-aircrafts:1.0.0' // todo
+    implementation 'net.simforge:refdata-aircrafts:1.0.0' // todo ?
     implementation 'net.simforge:refdata-airports:latest.release'
     implementation 'net.simforge:network-view-core:latest.release'
 
-//    implementation 'postgresql:postgresql:9.1-901-1.jdbc4'
+    implementation 'postgresql:postgresql:9.1-901-1.jdbc4'
     implementation 'ch.qos.logback:logback-classic:1.1.7'
 //    implementation 'org.ehcache:ehcache:3.3.1'
     implementation 'com.google.guava:guava:21.0'

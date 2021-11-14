@@ -44,7 +44,7 @@ class Track {
         }
 
         track.buildRanges();
-        track.printRanges();
+//        track.printRanges();
         track.buildFlights();
 
         return track;
