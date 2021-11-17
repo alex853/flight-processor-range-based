@@ -34,7 +34,7 @@ public abstract class AbstractTest {
 
         InMemoryFlightStorage flightStorageService = new InMemoryFlightStorage();
 
-        ProcessorPOCStatusService statusService = new ProcessorPOCStatusServiceStub();
+        ProcessorPOCStatusService statusService = new ProcessorPOCStatusServiceInMemory();
         if (savedProcessedReport != null) {
             statusService.saveLastProcessedReport(savedProcessedReport);
         }

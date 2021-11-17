@@ -1,6 +1,7 @@
 package net.simforge.flight.processor.rangebased;
 
 import net.simforge.networkview.core.report.ReportInfo;
+import net.simforge.networkview.core.report.ReportInfoDto;
 import net.simforge.networkview.core.report.ReportRange;
 
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.List;
 class PilotContext {
     private int pilotNumber;
     private List<ReportRange> processedRanges = new ArrayList<>();
+    private ReportInfoDto lastIncrementallyProcessedReport;
 
     public PilotContext(int pilotNumber) {
         this.pilotNumber = pilotNumber;
@@ -46,5 +48,13 @@ class PilotContext {
             return;
         }
         throw new UnsupportedOperationException();
+    }
+
+    public ReportInfo getLastIncrementallyProcessedReport() {
+        return lastIncrementallyProcessedReport;
+    }
+
+    public void setLastIncrementallyProcessedReport(ReportInfo lastIncrementallyProcessedReport) {
+        this.lastIncrementallyProcessedReport = new ReportInfoDto(lastIncrementallyProcessedReport);
     }
 }

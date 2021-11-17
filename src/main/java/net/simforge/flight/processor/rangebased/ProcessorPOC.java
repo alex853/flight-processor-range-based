@@ -21,7 +21,7 @@ public class ProcessorPOC {
 
         ReportSessionManager sessionManager = new ReportSessionManager();
         processor.setReportOpsService(new BaseReportOpsService(sessionManager, Network.VATSIM));
-        processor.setStatusService(new ProcessorPOCStatusServiceStub());
+        processor.setStatusService(new ProcessorPOCStatusServiceInMemory());
         processor.setFlightStorageService(new LocalGsonFlightStorage("/home/alex853/simforge/range-based-gson-local-storage"));
 
         while (true) {

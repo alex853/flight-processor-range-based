@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 public class LocalGsonFlightStorage implements FlightStorageService {
     private final File storageRoot;
+
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public LocalGsonFlightStorage(String storagePath) {

@@ -5,9 +5,9 @@ import net.simforge.networkview.core.report.ReportInfo;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ProcessorPOCStatusServiceStub implements ProcessorPOCStatusService {
+public class ProcessorPOCStatusServiceInMemory implements ProcessorPOCStatusService {
     private ReportInfo lastProcessedReport;
-    private Map<Integer, PilotContext> pilotContexts = new HashMap<>();
+    private final Map<Integer, PilotContext> pilotContexts = new HashMap<>();
 
     @Override
     public PilotContext loadPilotContext(int pilotNumber) {
