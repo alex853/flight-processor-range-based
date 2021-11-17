@@ -2,6 +2,7 @@ package net.simforge.flight.processor.rangebased;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.simforge.commons.bm.BMC;
 import net.simforge.commons.io.IOHelper;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportInfoDto;
@@ -19,23 +20,29 @@ public class ProcessorPOCStatusServiceLocalGson implements ProcessorPOCStatusSer
 
     @Override
     public PilotContext loadPilotContext(int pilotNumber) {
-        return load(pilotContextFile(pilotNumber), PilotContext.class);
+        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.loadPilotContext")) {
+            return load(pilotContextFile(pilotNumber), PilotContext.class);
+        }
     }
 
     @Override
     public PilotContext createPilotContext(int pilotNumber) {
-        PilotContext pilotContext = loadPilotContext(pilotNumber);
-        if (pilotContext != null) {
-            throw new IllegalArgumentException("Pilot context for pilot " + pilotNumber + " exists");
+        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.createPilotContext")) {
+            PilotContext pilotContext = loadPilotContext(pilotNumber);
+            if (pilotContext != null) {
+                throw new IllegalArgumentException("Pilot context for pilot " + pilotNumber + " exists");
+            }
+            pilotContext = new PilotContext(pilotNumber);
+            savePilotContext(pilotContext);
+            return pilotContext;
         }
-        pilotContext = new PilotContext(pilotNumber);
-        savePilotContext(pilotContext);
-        return pilotContext;
     }
 
     @Override
     public void savePilotContext(PilotContext pilotContext) {
-        save(pilotContextFile(pilotContext.getPilotNumber()), pilotContext);
+        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.savePilotContext")) {
+            save(pilotContextFile(pilotContext.getPilotNumber()), pilotContext);
+        }
     }
 
     private File pilotContextFile(int pilotNumber) {
@@ -49,21 +56,25 @@ public class ProcessorPOCStatusServiceLocalGson implements ProcessorPOCStatusSer
 
     @Override
     public ReportInfo loadLastProcessedReport() {
-        ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
-        if (processorStatus == null) {
-            return null;
+        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.loadLastProcessedReport")) {
+            ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
+            if (processorStatus == null) {
+                return null;
+            }
+            return processorStatus.getLastProcessedReport();
         }
-        return processorStatus.getLastProcessedReport();
     }
 
     @Override
     public void saveLastProcessedReport(ReportInfo report) {
-        ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
-        if (processorStatus == null) {
-            processorStatus = new ProcessorStatus();
+        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.saveLastProcessedReport")) {
+            ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
+            if (processorStatus == null) {
+                processorStatus = new ProcessorStatus();
+            }
+            processorStatus.setLastProcessedReport(report);
+            save(getProcessorStatusFile(), processorStatus);
         }
-        processorStatus.setLastProcessedReport(report);
-        save(getProcessorStatusFile(), processorStatus);
     }
 
     private File getProcessorStatusFile() {

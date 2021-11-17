@@ -20,7 +20,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.simforge:simforge-commons:latest.release'
+    implementation 'net.simforge:simforge-commons:1.1.1' // todo restore latest.release'
 //    implementation 'net.simforge:simforge-commons-ext:latest.release'
     implementation 'net.simforge:simforge-atmosphere:latest.release'
     implementation 'net.simforge:refdata-aircrafts:1.0.0' // todo ?

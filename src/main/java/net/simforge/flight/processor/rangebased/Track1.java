@@ -1,6 +1,7 @@
 package net.simforge.flight.processor.rangebased;
 
 import net.simforge.atmosphere.Airspeed;
+import net.simforge.commons.bm.BMC;
 import net.simforge.commons.misc.Geo;
 import net.simforge.commons.misc.JavaTime;
 import net.simforge.flight.core.EllipseCriterion;
@@ -29,26 +30,28 @@ class Track1 {
     private Track1() {}
 
     public static Track1 build(ReportRange currentRange, ReportTimeline timeline, List<ReportPilotPosition> reportPilotPositions) {
-        Track1 track = new Track1();
+        try (BMC ignored = BMC.start("Track1.build")) {
+            Track1 track = new Track1();
 
-        Map<String, ReportPilotPosition> reportPilotPositionByReport = reportPilotPositions.stream().collect(Collectors.toMap(p -> p.getReport().getReport(), Function.identity()));
+            Map<String, ReportPilotPosition> reportPilotPositionByReport = reportPilotPositions.stream().collect(Collectors.toMap(p -> p.getReport().getReport(), Function.identity()));
 
-        List<Report> reports = timeline.getReportsInRange(currentRange);
-        for (Report report : reports) {
-            ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
-            Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
-            track.trackData.add(position);
+            List<Report> reports = timeline.getReportsInRange(currentRange);
+            for (Report report : reports) {
+                ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
+                Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
+                track.trackData.add(position);
 
-            if (track.pilotNumber == 0 && reportPilotPosition != null) {
-                track.pilotNumber = reportPilotPosition.getPilotNumber();
+                if (track.pilotNumber == 0 && reportPilotPosition != null) {
+                    track.pilotNumber = reportPilotPosition.getPilotNumber();
+                }
             }
-        }
 
-        track.buildRanges();
+            track.buildRanges();
 //        track.printRanges();
-        track.buildFlights();
+            track.buildFlights();
 
-        return track;
+            return track;
+        }
     }
 
     public Collection<Flight1> getFlights() {
@@ -115,68 +118,70 @@ class Track1 {
     }
 
     private void buildRanges() {
-        Iterator<Position> iterator = trackData.iterator();
-        Position startPosition = iterator.next();
+        try (BMC ignored = BMC.start("Track1.buildRanges")) {
+            Iterator<Position> iterator = trackData.iterator();
+            Position startPosition = iterator.next();
 
-        startOfTrack = TrackedEvent.startOfTrack(startPosition.getReportInfo().getReport());
+            startOfTrack = TrackedEvent.startOfTrack(startPosition.getReportInfo().getReport());
 
-        Position position = startPosition;
+            Position position = startPosition;
 
-        // online/offline section
-        TrackedRange range = startOfTrack.startNextRange(position);
-        while (iterator.hasNext()) {
-            position = iterator.next();
-            boolean consumed = range.offer(position);
-            if (consumed) {
-                continue;
+            // online/offline section
+            TrackedRange range = startOfTrack.startNextRange(position);
+            while (iterator.hasNext()) {
+                position = iterator.next();
+                boolean consumed = range.offer(position);
+                if (consumed) {
+                    continue;
+                }
+
+                // we have some event here
+
+                Position prevPosition = range.getLastPosition();
+                boolean wentOnline = !prevPosition.isPositionKnown() && position.isPositionKnown();
+                boolean wentOffline = prevPosition.isPositionKnown() && !position.isPositionKnown();
+
+                if (wentOnline) {
+                    range = range.wentOnline(position);
+                } else if (wentOffline) {
+                    range = range.wentOffline(position);
+                }
             }
+            endOfTrack = range.endOfTrack();
 
-            // we have some event here
+            // takeoff/landing section
+            TrackedEvent event = startOfTrack;
+            while (event != endOfTrack) {
+                range = event.getNextRange();
+                if (range.getType() != RangeType.Online) {
+                    event = range.getNextEvent();
+                    continue;
+                }
 
-            Position prevPosition = range.getLastPosition();
-            boolean wentOnline = !prevPosition.isPositionKnown() && position.isPositionKnown();
-            boolean wentOffline = prevPosition.isPositionKnown() && !position.isPositionKnown();
+                splitByTakeoffLandingEvents(range);
 
-            if (wentOnline) {
-                range = range.wentOnline(position);
-            } else if (wentOffline) {
-                range = range.wentOffline(position);
-            }
-        }
-        endOfTrack = range.endOfTrack();
-
-        // takeoff/landing section
-        TrackedEvent event = startOfTrack;
-        while (event != endOfTrack) {
-            range = event.getNextRange();
-            if (range.getType() != RangeType.Online) {
                 event = range.getNextEvent();
-                continue;
             }
 
-            splitByTakeoffLandingEvents(range);
-
-            event = range.getNextEvent();
-        }
-
-        // touch&go section
-        event = startOfTrack;
-        while (event != endOfTrack) {
-            if (event.getType() == EventType.Landing) {
-                TrackedEvent landingEvent = event;
-                TrackedRange onGroundRange = event.getNextRange();
-                if (onGroundRange.getType() == RangeType.OnGround) {
-                    if (onGroundRange.getPositions().size() == 1) {
-                        TrackedEvent takeoffEvent = onGroundRange.getNextEvent();
-                        if (takeoffEvent.getType() == EventType.Takeoff) {
-                            event = putTouchAndGoEvent(landingEvent, takeoffEvent);
+            // touch&go section
+            event = startOfTrack;
+            while (event != endOfTrack) {
+                if (event.getType() == EventType.Landing) {
+                    TrackedEvent landingEvent = event;
+                    TrackedRange onGroundRange = event.getNextRange();
+                    if (onGroundRange.getType() == RangeType.OnGround) {
+                        if (onGroundRange.getPositions().size() == 1) {
+                            TrackedEvent takeoffEvent = onGroundRange.getNextEvent();
+                            if (takeoffEvent.getType() == EventType.Takeoff) {
+                                event = putTouchAndGoEvent(landingEvent, takeoffEvent);
+                            }
                         }
                     }
                 }
-            }
 
-            range = event.getNextRange();
-            event = range.getNextEvent();
+                range = event.getNextRange();
+                event = range.getNextEvent();
+            }
         }
     }
 
@@ -244,26 +249,28 @@ class Track1 {
     }
 
     private void buildFlights() {
-        // to add support for incomplete flights
-        for (TrackedEvent event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
-            if (event.getType() != EventType.Takeoff) {
-                continue;
-            }
+        try (BMC ignored = BMC.start("Track1.buildFlights")) {
+            // to add support for incomplete flights
+            for (TrackedEvent event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
+                if (event.getType() != EventType.Takeoff) {
+                    continue;
+                }
 
-            TrackedFlight flight = tryToBuildIdealFlight(event);
-            if (flight != null) {
-                flights.add(flight);
-                continue;
-            }
-            flight = tryToTASFlight(event);
-            if (flight != null) {
-                flights.add(flight);
-                continue;
-            }
-            flight = tryToEllipseFlight(event);
-            if (flight != null) {
-                flights.add(flight);
+                TrackedFlight flight = tryToBuildIdealFlight(event);
+                if (flight != null) {
+                    flights.add(flight);
+                    continue;
+                }
+                flight = tryToTASFlight(event);
+                if (flight != null) {
+                    flights.add(flight);
+                    continue;
+                }
+                flight = tryToEllipseFlight(event);
+                if (flight != null) {
+                    flights.add(flight);
 //                    continue;
+                }
             }
         }
     }
