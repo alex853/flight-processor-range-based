@@ -23,10 +23,10 @@ import java.util.stream.Collectors;
 
 public class Track1 {
     private int pilotNumber;
-    private List<Position> trackData = new ArrayList<>();
+    private final List<Position> trackData = new ArrayList<>();
     private TrackedEvent startOfTrack;
     private TrackedEvent endOfTrack;
-    private List<TrackedFlight> flights = new ArrayList<>();
+    private final List<TrackedFlight> flights = new ArrayList<>();
 
     private Track1() {}
 
@@ -79,10 +79,11 @@ public class Track1 {
 
         Flight1 flight1 = new Flight1();
 
-        final String mostFrequentCallsign = computeMostFrequent(trackedFlight, Position::getCallsign);
-        final String mostFrequentAircraftType = computeMostFrequent(trackedFlight, Position::getFpAircraftType);
-        final String mostFrequentRegNo = computeMostFrequent(trackedFlight, Position::getRegNo);
-        final Flightplan mostFrequentFlightplan = computeMostFrequent(trackedFlight, Flightplan::fromPosition);
+        final PositionVisitor trackedFlightPositionVisitor = visitPositions(trackedFlight);
+        final String mostFrequentCallsign = computeMostFrequent(trackedFlightPositionVisitor, Position::getCallsign);
+        final String mostFrequentAircraftType = computeMostFrequent(trackedFlightPositionVisitor, Position::getFpAircraftType);
+        final String mostFrequentRegNo = computeMostFrequent(trackedFlightPositionVisitor, Position::getRegNo);
+        final Flightplan mostFrequentFlightplan = computeMostFrequent(trackedFlightPositionVisitor, Flightplan::fromPosition);
 
         flight1.setPilotNumber(pilotNumber);
         flight1.setDateOfFlight(JavaTime.yMd.format(firstSeenPosition.getReportInfo().getDt()));
@@ -107,13 +108,13 @@ public class Track1 {
         return flight1;
     }
 
-    private <T> T computeMostFrequent(TrackedFlight trackedFlight, Function<Position, T> function) {
+    private <T> T computeMostFrequent(final PositionVisitor positionVisitor, final Function<Position, T> valueGetter) {
         final Map<T, Integer> frequencies = new HashMap<>();
-        visitPositions(trackedFlight, position -> {
+        positionVisitor.visitPositions(position -> {
             if (!position.isPositionKnown()) {
                 return;
             }
-            final T key = function.apply(position);
+            final T key = valueGetter.apply(position);
             if (key != null) {
                 frequencies.compute(key, (k, count) -> (count != null ? count + 1 : 1));
             }
@@ -123,14 +124,27 @@ public class Track1 {
         return maxEntry.map(Map.Entry::getKey).orElse(null);
     }
 
-    private void visitPositions(final TrackedFlight trackedFlight, final Consumer<Position> consumer) {
-        TrackedEvent currentEvent = trackedFlight.firstSeenEvent;
-        while (currentEvent != trackedFlight.lastSeenEvent) {
-            final TrackedRange nextRange = currentEvent.getNextRange();
-            List<Position> positions = nextRange.getPositions();
+    private interface PositionVisitor {
+        void visitPositions(final Consumer<Position> consumer);
+    }
+
+    private PositionVisitor visitPositions(final TrackedFlight trackedFlight) {
+        return consumer -> {
+            TrackedEvent currentEvent = trackedFlight.firstSeenEvent;
+            while (currentEvent != trackedFlight.lastSeenEvent) {
+                final TrackedRange nextRange = currentEvent.getNextRange();
+                List<Position> positions = nextRange.getPositions();
+                positions.forEach(consumer);
+                currentEvent = nextRange.getNextEvent();
+            }
+        };
+    }
+
+    private PositionVisitor visitPositions(final TrackedRange trackedRange) {
+        return consumer -> {
+            List<Position> positions = trackedRange.getPositions();
             positions.forEach(consumer);
-            currentEvent = nextRange.getNextEvent();
-        }
+        };
     }
 
     // future to add online/offline, flighttime/airtime, etc
@@ -374,7 +388,7 @@ public class Track1 {
 
                 TrackedRange firstFlyingRange = range;
                 TrackedRange lastFlyingRange = range;
-                Flightplan flightplan = findFlightplan(range, null);
+                Flightplan flightplan = computeMostFrequent(visitPositions(range), Flightplan::fromPosition);
 
                 // try to join flying range on right side
                 boolean continueToRight = true;
@@ -406,7 +420,7 @@ public class Track1 {
 
                             if (canSegmentsBeJoinedBasedOnTASversusDistance(lastFlyingRange, nextFlyingRange, flightplan)) {
                                 lastFlyingRange = nextFlyingRange;
-                                flightplan = flightplan != null ? flightplan : findFlightplan(nextFlyingRange, flightplan);
+                                // todo ak ???? flightplan = flightplan != null ? flightplan : findFlightplan(nextFlyingRange, flightplan);
                             } else {
                                 continueToRight = false;
                             }
@@ -646,15 +660,6 @@ public class Track1 {
         }
     }
 
-    // todo ak3 future more intellectual collection of flightplan information
-    private Flightplan findFlightplan(TrackedRange range, Flightplan previousFlightplan) {
-        Flightplan flightplan = Flightplan.fromPosition(range.getLastPosition());
-        if (flightplan != null) {
-            return flightplan;
-        }
-        return previousFlightplan;
-    }
-
     private TrackedFlight tryToEllipseFlight(TrackedEvent takeoffEvent) {
         TrackedRange lastFlyingRange = takeoffEvent.getNextRange();
         Flightplan flightplan = Flightplan.fromPosition(lastFlyingRange.getLastPosition());
@@ -740,7 +745,6 @@ public class Track1 {
         }
 
         TrackedRange startNextRange(Position position) {
-            // todo check existing
             TrackedRange range = new TrackedRange();
             range.previousEvent = this;
             range.type = TrackedRange.getRangeType(position);
@@ -797,7 +801,7 @@ public class Track1 {
             }
         }
 
-        boolean offer(Position position) { // todo checks
+        boolean offer(Position position) {
             RangeType rangeType = getRangeType(position);
             if (rangeType != this.type) {
                 return false;
@@ -806,17 +810,17 @@ public class Track1 {
             return true;
         }
 
-        TrackedRange wentOnline(Position position) { // todo checks, move out
+        TrackedRange wentOnline(Position position) {
             TrackedEvent onlineEvent = new TrackedEvent(this, EventType.Online, position.getReportInfo().getReport());
             return onlineEvent.startNextRange(position);
         }
 
-        TrackedRange wentOffline(Position position) { // todo checks, move out
+        TrackedRange wentOffline(Position position) {
             TrackedEvent offlineEvent = new TrackedEvent(this, EventType.Offline, getLastPosition().getReportInfo().getReport());
             return offlineEvent.startNextRange(position);
         }
 
-        TrackedEvent endOfTrack() { // todo checks, move out
+        TrackedEvent endOfTrack() {
             return new TrackedEvent(this, EventType.EndOfTrack, getLastPosition().getReportInfo().getReport());
         }
 
@@ -888,7 +892,6 @@ public class Track1 {
             return flight;
         }
 
-        // todo ???
         void setType(RangeType type) {
             this.type = type;
         }
