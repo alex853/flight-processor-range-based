@@ -47,15 +47,19 @@ public class Track1 {
             }
 
             track.buildRanges();
-//        track.printRanges();
+            track.printRanges();
             track.buildFlights();
+            track.printRanges();
 
             return track;
         }
     }
 
     public List<Flight1> getFlights() {
-        return flights.stream().map(this::buildFlight1).collect(Collectors.toList());
+        return flights.stream()
+                .map(this::buildFlight1)
+                .sorted(Flight1::compareByTakeoff)
+                .collect(Collectors.toList());
     }
 
     private Flight1 buildFlight1(TrackedFlight trackedFlight) {
@@ -82,7 +86,7 @@ public class Track1 {
         flight1.setTakeoff(Flight1.position(takeoffPosition));
         flight1.setLanding(Flight1.position(landingPosition));
 
-        flight1.setComplete(true);
+        flight1.setComplete(trackedFlight.trackingMode != TrackingMode.Incomplete);
         flight1.setTrackingMode(trackedFlight.trackingMode.name());
 
         return flight1;
@@ -248,9 +252,12 @@ public class Track1 {
         flights.forEach(System.out::println);
     }
 
+    // stage 1 - recognition of complete flights, events will be marked occupied
+    // stage 2 - look at non-occupied events and try to build non-completed flights
+    // stage 3 - look at on-ground ranges and attach them to takeoff and landing events
     private void buildFlights() {
         try (BMC ignored = BMC.start("Track1.buildFlights")) {
-            // to add support for incomplete flights
+            // todo ak add support for incomplete flights
             for (TrackedEvent event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
                 if (event.getType() != EventType.Takeoff) {
                     continue;
@@ -258,19 +265,80 @@ public class Track1 {
 
                 TrackedFlight flight = tryToBuildIdealFlight(event);
                 if (flight != null) {
+                    flight.markRanges();
                     flights.add(flight);
                     continue;
                 }
                 flight = tryToTASFlight(event);
                 if (flight != null) {
+                    flight.markRanges();
                     flights.add(flight);
                     continue;
                 }
                 flight = tryToEllipseFlight(event);
                 if (flight != null) {
+                    flight.markRanges();
                     flights.add(flight);
-//                    continue;
                 }
+            }
+
+            for (TrackedRange range = startOfTrack.getNextRange(); range != null; range = range.getNextEvent().getNextRange()) {
+                if (range.getFlight() != null
+                    || range.getType() != RangeType.Flying) {
+                    continue;
+                }
+
+                TrackedRange firstFlyingRange = range;
+                TrackedRange lastFlyingRange = range;
+                Flightplan flightplan = findFlightplan(range, null);
+
+                // try to join flying range on right side
+                boolean continueToRight = true;
+                while (continueToRight) {
+                    EventType nextEventType = lastFlyingRange.getNextEvent().getType();
+                    switch (nextEventType) {
+                        case Online:
+                        case StartOfTrack:
+                        case Takeoff:
+                            throw new IllegalStateException();
+                        case EndOfTrack:
+                        case Landing:
+                            continueToRight = false;
+                            break;
+                        case Offline:
+                            TrackedRange nextFlyingRange = getNextFlyingRange(lastFlyingRange);
+                            if (nextFlyingRange == null) {
+                                continueToRight = false;
+                                break; // it means that pilot did not reconnect after that flying section
+                            }
+
+                            if (nextFlyingRange.getFlight() != null) {
+                                continueToRight = false;
+                                break;
+                            }
+
+                            if (canSegmentsBeJoinedBasedOnTASversusDistance(lastFlyingRange, nextFlyingRange, flightplan)) {
+                                lastFlyingRange = nextFlyingRange;
+                                flightplan = flightplan != null ? flightplan : findFlightplan(nextFlyingRange, flightplan);
+                            } else {
+                                continueToRight = false;
+                            }
+
+                            break;
+                        case TouchAndGo:
+                            TrackedRange flyingAfterTouchAndGo = lastFlyingRange.getNextEvent().getNextRange();
+                            if (flyingAfterTouchAndGo.getFlight() != null
+                                    || flyingAfterTouchAndGo.getType() != RangeType.Flying) {
+                                throw new IllegalStateException(); // this is unexpected, right range after t&g should be non-occupied flying
+                            }
+                            lastFlyingRange = flyingAfterTouchAndGo;
+                            break;
+                    }
+                }
+
+                TrackedFlight flight = new TrackedFlight(firstFlyingRange.getPreviousEvent(), lastFlyingRange.getNextEvent(), TrackingMode.Incomplete);
+                flight.markRanges();
+                flights.add(flight);
             }
         }
     }
@@ -329,41 +397,7 @@ public class Track1 {
                     return null;
                 }
 
-                // can we join lastFlyingRange and nextFlyingRange
-                Position nextPosition = nextFlyingRange.getFirstPosition();
-                Position lastPosition = lastFlyingRange.getLastPosition();
-                double distance = Geo.distance(lastPosition.getCoords(), nextPosition.getCoords());
-                double hours = JavaTime.hoursBetween(lastPosition.getReportInfo().getDt(), nextPosition.getReportInfo().getDt());
-                int groundspeed = (int) (distance / hours);
-
-                String aircraftType = flightplan.getAircraftType();
-                if (aircraftType != null) {
-                    Optional<AircraftPerformance> performance = AircraftPerformanceDatabase.getPerformance(aircraftType);
-                    if (!performance.isPresent()) {
-                        UnknownAircraftTypes.add(aircraftType);
-                        return null;
-                    }
-
-                    Integer ias = performance.get().getCruiseIasAtCruiseCeiling();
-                    if (ias != null) {
-                        int minAltitude = Math.min(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
-                        int maxAltitude = Math.max(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
-
-                        if (maxAltitude < 10000) {
-                            ias = (int) (ias * 0.6); // initial climb or approach speed
-                        } else if (maxAltitude < 20000) {
-                            ias = (int) (ias * 0.8); // climb or descend speed
-                        }
-
-                        int minTas = (int) (Airspeed.iasToTas(ias, minAltitude) * 0.66);
-                        int maxTas = (int) (Airspeed.iasToTas(ias, maxAltitude) * 1.33);
-
-                        if (minTas <= groundspeed && groundspeed <= maxTas) {
-                            // we can join two flying ranges divided by one offline range
-                            canWeSkipThisRange = true;
-                        }
-                    }
-                }
+                canWeSkipThisRange = canSegmentsBeJoinedBasedOnTASversusDistance(lastFlyingRange, nextFlyingRange, flightplan);
             } else {
                 throw new IllegalStateException();
             }
@@ -374,6 +408,62 @@ public class Track1 {
                 return null;
             }
         }
+    }
+
+    private boolean canSegmentsBeJoinedBasedOnTASversusDistance(TrackedRange lastFlyingRange, TrackedRange nextFlyingRange, Flightplan flightplan) {
+        Position nextPosition = nextFlyingRange.getFirstPosition();
+        Position lastPosition = lastFlyingRange.getLastPosition();
+        double distance = Geo.distance(lastPosition.getCoords(), nextPosition.getCoords());
+        double hours = JavaTime.hoursBetween(lastPosition.getReportInfo().getDt(), nextPosition.getReportInfo().getDt());
+        int groundspeed = (int) (distance / hours);
+
+        if (flightplan == null) {
+            return false;
+        }
+        String aircraftType = flightplan.getAircraftType();
+        if (aircraftType == null) {
+            return false;
+        }
+
+        Optional<AircraftPerformance> performance = AircraftPerformanceDatabase.getPerformance(aircraftType);
+        if (!performance.isPresent()) {
+            UnknownAircraftTypes.add(aircraftType);
+            return false;
+        }
+
+        Integer ias = performance.get().getCruiseIasAtCruiseCeiling();
+        if (ias == null) {
+            return false;
+        }
+
+        int minAltitude = Math.min(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
+        int maxAltitude = Math.max(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
+
+        if (maxAltitude < 10000) {
+            ias = (int) (ias * 0.6); // initial climb or approach speed
+        } else if (maxAltitude < 20000) {
+            ias = (int) (ias * 0.8); // climb or descend speed
+        }
+
+        // todo ak3 max duration of offline segment?
+        int minTas = (int) (Airspeed.iasToTas(ias, minAltitude) * 0.66);
+        int maxTas = (int) (Airspeed.iasToTas(ias, maxAltitude) * 1.33);
+
+        if (minTas <= groundspeed && groundspeed <= maxTas) {
+            // we can join two flying ranges divided by one offline range
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // todo ak3 future more intellectual collection of flightplan information
+    private Flightplan findFlightplan(TrackedRange range, Flightplan previousFlightplan) {
+        Flightplan flightplan = Flightplan.fromPosition(range.getLastPosition());
+        if (flightplan != null) {
+            return flightplan;
+        }
+        return previousFlightplan;
     }
 
     private TrackedFlight tryToEllipseFlight(TrackedEvent takeoffEvent) {
@@ -500,6 +590,7 @@ public class Track1 {
         private TrackedEvent previousEvent;
         private RangeType type;
         private List<Position> positions = new ArrayList<>();
+        private TrackedFlight flight;
         private TrackedEvent nextEvent;
 
         private TrackedRange() {
@@ -567,12 +658,20 @@ public class Track1 {
             return positions.get(positions.size() - 1);
         }
 
+        TrackedEvent getPreviousEvent() {
+            return previousEvent;
+        }
+
         TrackedEvent getNextEvent() {
             return nextEvent;
         }
 
         RangeType getType() {
             return type;
+        }
+
+        TrackedFlight getFlight() {
+            return flight;
         }
 
         // todo ???
@@ -587,13 +686,14 @@ public class Track1 {
         @Override
         public String toString() {
             Double distance = getDistance();
-            return String.format("Range (%s) -> %s -> (%s), length %d, duration %s, distance %s",
+            return String.format("Range (%s) -> %s -> (%s), length %d, duration %s, distance %s, flight %s",
                     (previousEvent != null ? previousEvent.type : "n/a"),
                     type.name().toUpperCase(),
                     (nextEvent != null ? nextEvent.type : "n/a"),
                     positions.size(),
                     JavaTime.toHhmm(getDuration()),
-                    (distance != null ? new DecimalFormat("0.0").format(distance) : "n/a"));
+                    (distance != null ? new DecimalFormat("0.0").format(distance) : "n/a"),
+                    (flight != null ? flight.toString() : "n/a"));
         }
 
         Double getDistance() {
@@ -615,7 +715,6 @@ public class Track1 {
         Duration getDuration() {
             return Duration.between(ReportUtils.fromTimestampJava(previousEvent.report), ReportUtils.fromTimestampJava(nextEvent.report));
         }
-
     }
 
     enum RangeType {
@@ -626,8 +725,10 @@ public class Track1 {
     }
 
     static class TrackedFlight {
+        // todo ak firstSeenEvent
         private TrackedEvent takeoffEvent;
         private TrackedEvent landingEvent;
+        // todo ak lastSeenEvent
         private TrackingMode trackingMode;
 
         public TrackedFlight(TrackedEvent takeoffEvent, TrackedEvent landingEvent, TrackingMode trackingMode) {
@@ -635,11 +736,20 @@ public class Track1 {
             this.landingEvent = landingEvent;
             this.trackingMode = trackingMode;
         }
+
+        public void markRanges() {
+            TrackedEvent currentEvent = takeoffEvent; // todo ak first/last seen
+            while (currentEvent != landingEvent) { // todo ak first/last seen
+                currentEvent.getNextRange().flight = this;
+                currentEvent = currentEvent.getNextRange().getNextEvent();
+            }
+        }
     }
 
     public enum TrackingMode {
         Ideal,
         TAS,
-        Ellipse
+        Ellipse,
+        Incomplete
     }
 }

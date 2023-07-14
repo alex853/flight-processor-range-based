@@ -2,19 +2,17 @@ package net.simforge.flight.processor.rangebased.track;
 
 import net.simforge.commons.io.Csv;
 import net.simforge.commons.io.IOHelper;
-import net.simforge.flight.core.storage.InMemoryFlightStorage;
-import net.simforge.flight.processor.rangebased.*;
+import net.simforge.flight.processor.rangebased.Flight1;
+import net.simforge.flight.processor.rangebased.ReportTimeline;
+import net.simforge.flight.processor.rangebased.Track1;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
-import net.simforge.networkview.core.report.persistence.Report;
 import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
 import net.simforge.networkview.core.report.snapshot.CsvSnapshotReportOpsService;
 import org.junit.Ignore;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;

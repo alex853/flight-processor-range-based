@@ -26,9 +26,9 @@ public class Test__NonCompleteCases extends AbstractTrackTest {
                 "B738",
                 "GCELJ",
                 "EGBB",
-                "LCLK",
+                null,
                 false,
-                Track1.TrackingMode.Ideal);
+                Track1.TrackingMode.Incomplete);
     }
 
     @Test
@@ -44,9 +44,9 @@ public class Test__NonCompleteCases extends AbstractTrackTest {
                 "EXS1269",
                 "B738",
                 "GCELJ",
-                "EGBB",
+                null,
                 "LCLK",
                 false,
-                Track1.TrackingMode.Ideal);
+                Track1.TrackingMode.Incomplete);
     }
 }

@@ -30,12 +30,12 @@ public class Test__Pilot913904 extends AbstractTrackTest {
         List<Flight1> flights = process(pilotNumber,
                 "/snapshots/pilot-913904_2023-07-09_2023-07-11.csv");
 
-        assertEquals(4, flights.size());
+        assertEquals(5, flights.size());
 
         assertFlightRoute(flights.get(0), "UATT", "UBBB");
-        // there is incomplete flight UBBB-LTCI terminated in few minutes after takeoff due to FS crash
-        assertFlightRoute(flights.get(1), "UBBB", "LTCI");
-        assertFlightRoute(flights.get(2), "LTCI", "LTCI");
-        assertFlightRoute(flights.get(3), "LTCI", "LTAR");
+        assertFlightRoute(flights.get(1), "UBBB", null); // FS crashed few mins after takeoff
+        assertFlightRoute(flights.get(2), "UBBB", "LTCI");
+        assertFlightRoute(flights.get(3), "LTCI", "LTCI");
+        assertFlightRoute(flights.get(4), "LTCI", "LTAR");
     }
 }
