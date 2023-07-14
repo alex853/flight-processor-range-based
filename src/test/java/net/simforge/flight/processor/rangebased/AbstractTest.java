@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Ignore
+@Deprecated
 public abstract class AbstractTest {
 
     protected int pilotNumber;
@@ -24,7 +25,7 @@ public abstract class AbstractTest {
 
     @Test
     public void test() throws IOException {
-        InputStream is = Class.class.getResourceAsStream(csvSnapshot);
+        InputStream is = TestReportTimeline.class.getResourceAsStream(csvSnapshot);
         String csvContent = IOHelper.readInputStream(is);
         Csv csv = Csv.fromContent(csvContent);
         CsvSnapshotReportOpsService reportOpsService = new CsvSnapshotReportOpsService(csv);

@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-class Track1 {
+public class Track1 {
     private int pilotNumber;
     private List<Position> trackData = new ArrayList<>();
     private TrackedEvent startOfTrack;
@@ -54,7 +54,7 @@ class Track1 {
         }
     }
 
-    public Collection<Flight1> getFlights() {
+    public List<Flight1> getFlights() {
         return flights.stream().map(this::buildFlight1).collect(Collectors.toList());
     }
 
@@ -637,7 +637,7 @@ class Track1 {
         }
     }
 
-    enum TrackingMode {
+    public enum TrackingMode {
         Ideal,
         TAS,
         Ellipse

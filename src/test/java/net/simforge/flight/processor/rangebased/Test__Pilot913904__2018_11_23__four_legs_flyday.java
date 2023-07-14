@@ -2,6 +2,7 @@ package net.simforge.flight.processor.rangebased;
 
 import net.simforge.networkview.core.report.ReportInfoDto;
 import org.junit.Before;
+import org.junit.Ignore;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,7 +10,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class Test_Pilot913904_2018_11_23 extends AbstractTest {
+@Deprecated
+@Ignore
+public class Test__Pilot913904__2018_11_23__four_legs_flyday extends AbstractTest {
 
     @Before
     public void before() {

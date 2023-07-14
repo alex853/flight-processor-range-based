@@ -23,7 +23,7 @@ public class TestReportTimeline {
 
     @Before
     public void before() throws IOException {
-        InputStream is = Class.class.getResourceAsStream("/snapshots/pilot-811636_from-1000000_amount-127321.csv");
+        InputStream is = TestReportTimeline.class.getResourceAsStream("/snapshots/pilot-811636_from-1000000_amount-127321.csv");
         String csvContent = IOHelper.readInputStream(is);
         Csv csv = Csv.fromContent(csvContent);
         this.reportOpsService = new CsvSnapshotReportOpsService(csv);
