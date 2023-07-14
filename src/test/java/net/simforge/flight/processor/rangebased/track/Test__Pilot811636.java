@@ -2,7 +2,6 @@ package net.simforge.flight.processor.rangebased.track;
 
 import net.simforge.flight.processor.rangebased.Flight1;
 import net.simforge.flight.processor.rangebased.Track1;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -15,12 +14,11 @@ public class Test__Pilot811636 extends AbstractTrackTest {
     private static final int pilotNumber = 811636;
 
     @Test
-    @Ignore
     public void test__everything() throws IOException {
         List<Flight1> flights = process(pilotNumber,
                 "/snapshots/pilot-811636_from-1000000_amount-127321.csv");
 
-        assertEquals(1, flights.size());
+        assertEquals(104, flights.size());
     }
 
     @Test

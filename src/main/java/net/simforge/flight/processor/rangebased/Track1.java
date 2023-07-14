@@ -110,6 +110,9 @@ public class Track1 {
     private <T> T computeMostFrequent(TrackedFlight trackedFlight, Function<Position, T> function) {
         final Map<T, Integer> frequencies = new HashMap<>();
         visitPositions(trackedFlight, position -> {
+            if (!position.isPositionKnown()) {
+                return;
+            }
             final T key = function.apply(position);
             if (key != null) {
                 frequencies.compute(key, (k, count) -> (count != null ? count + 1 : 1));
