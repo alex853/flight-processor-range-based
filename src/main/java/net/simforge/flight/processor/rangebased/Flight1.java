@@ -1,31 +1,26 @@
 package net.simforge.flight.processor.rangebased;
 
 import net.simforge.commons.misc.Geo;
+import net.simforge.commons.misc.JavaTime;
 import net.simforge.flight.core.Flightplan;
 import net.simforge.networkview.core.report.ReportInfoDto;
 import net.simforge.networkview.core.Position;
 
-import java.time.LocalDate;
-
 public class Flight1 {
     private int pilotNumber;
-    private LocalDate dateOfFlight;
+    private String dateOfFlight;
     private String callsign;
     private String aircraftType;
     private String aircraftRegNo;
-    private String departureIcao;
-    private String arrivalIcao;
-    private String departureTime;
-    private String arrivalTime;
 
     private Double distanceFlown;
     private Double airTime;
     private Flightplan flightplan;
 
     private Position1 firstSeen;
-    private Position1 lastSeen;
     private Position1 takeoff;
     private Position1 landing;
+    private Position1 lastSeen;
 
     private Boolean complete;
     private String trackingMode;
@@ -38,11 +33,11 @@ public class Flight1 {
         this.pilotNumber = pilotNumber;
     }
 
-    public LocalDate getDateOfFlight() {
+    public String getDateOfFlight() {
         return dateOfFlight;
     }
 
-    public void setDateOfFlight(LocalDate dateOfFlight) {
+    public void setDateOfFlight(String dateOfFlight) {
         this.dateOfFlight = dateOfFlight;
     }
 
@@ -70,38 +65,6 @@ public class Flight1 {
         this.aircraftRegNo = aircraftRegNo;
     }
 
-    public String getDepartureIcao() {
-        return departureIcao;
-    }
-
-    public void setDepartureIcao(String departureIcao) {
-        this.departureIcao = departureIcao;
-    }
-
-    public String getArrivalIcao() {
-        return arrivalIcao;
-    }
-
-    public void setArrivalIcao(String arrivalIcao) {
-        this.arrivalIcao = arrivalIcao;
-    }
-
-    public String getDepartureTime() {
-        return departureTime;
-    }
-
-    public void setDepartureTime(String departureTime) {
-        this.departureTime = departureTime;
-    }
-
-    public String getArrivalTime() {
-        return arrivalTime;
-    }
-
-    public void setArrivalTime(String arrivalTime) {
-        this.arrivalTime = arrivalTime;
-    }
-
     public Double getDistanceFlown() {
         return distanceFlown;
     }
@@ -126,6 +89,14 @@ public class Flight1 {
         this.flightplan = flightplan;
     }
 
+    public Position1 getFirstSeen() {
+        return firstSeen;
+    }
+
+    public void setFirstSeen(Position1 firstSeen) {
+        this.firstSeen = firstSeen;
+    }
+
     public Position1 getTakeoff() {
         return takeoff;
     }
@@ -140,6 +111,14 @@ public class Flight1 {
 
     public void setLanding(Position1 landing) {
         this.landing = landing;
+    }
+
+    public Position1 getLastSeen() {
+        return lastSeen;
+    }
+
+    public void setLastSeen(Position1 lastSeen) {
+        this.lastSeen = lastSeen;
     }
 
     public Boolean getComplete() {
@@ -169,11 +148,17 @@ public class Flight1 {
     public static class Position1 {
         private final ReportInfoDto reportInfo;
         private final Geo.Coords coords;
+        private final String icao;
+        private final String date;
+        private final String time;
         private final String status;
 
         private Position1(Position position) {
             this.reportInfo = new ReportInfoDto(position.getReportInfo());
             this.coords = position.isPositionKnown() ? position.getCoords() : null;
+            this.icao = position.getAirportIcao();
+            this.date = JavaTime.yMd.format(reportInfo.getDt());
+            this.time = JavaTime.hhmm.format(reportInfo.getDt());
             this.status = position.getStatus();
         }
 
@@ -183,6 +168,18 @@ public class Flight1 {
 
         public Geo.Coords getCoords() {
             return coords;
+        }
+
+        public String getIcao() {
+            return icao;
+        }
+
+        public String getDate() {
+            return date;
+        }
+
+        public String getTime() {
+            return time;
         }
 
         public String getStatus() {

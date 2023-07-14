@@ -61,14 +61,14 @@ class Track {
         Flight1 flight1 = new Flight1();
 
         flight1.setPilotNumber(pilotNumber);
-        flight1.setDateOfFlight(takeoffPosition.getReportInfo().getDt().toLocalDate());
+        flight1.setDateOfFlight(JavaTime.yMd.format(takeoffPosition.getReportInfo().getDt()));
         flight1.setCallsign(takeoffPosition.getCallsign());
         flight1.setAircraftType(takeoffPosition.getFpAircraftType());
         flight1.setAircraftRegNo(takeoffPosition.getRegNo());
-        flight1.setDepartureIcao(takeoffPosition.getAirportIcao());
-        flight1.setDepartureTime(JavaTime.hhmm.format(takeoffPosition.getReportInfo().getDt()));
-        flight1.setArrivalIcao(landingPosition.getAirportIcao());
-        flight1.setArrivalTime(JavaTime.hhmm.format(landingPosition.getReportInfo().getDt()));
+//        flight1.setDepartureIcao(takeoffPosition.getAirportIcao());
+//        flight1.setDepartureTime(JavaTime.hhmm.format(takeoffPosition.getReportInfo().getDt()));
+//        flight1.setArrivalIcao(landingPosition.getAirportIcao());
+//        flight1.setArrivalTime(JavaTime.hhmm.format(landingPosition.getReportInfo().getDt()));
 
         Map<String, Double> distanceAndTime = calculateDistanceAndTime(trackedFlight);
         flight1.setDistanceFlown(distanceAndTime.get("total.distance"));

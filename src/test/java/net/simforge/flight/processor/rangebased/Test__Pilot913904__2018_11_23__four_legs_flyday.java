@@ -29,19 +29,19 @@ public class Test__Pilot913904__2018_11_23__four_legs_flyday extends AbstractTes
         sortedFlights.sort(Flight1::compareByTakeoff);
 
         Flight1 flight = sortedFlights.get(0);
-        assertEquals("EGKK", flight.getDepartureIcao());
-        assertEquals("EGJJ", flight.getArrivalIcao());
+        assertEquals("EGKK", null /*flight.getDepartureIcao()*/);
+        assertEquals("EGJJ", null /*flight.getArrivalIcao()*/);
 
         flight = sortedFlights.get(1);
-        assertEquals("EGJJ", flight.getDepartureIcao());
-        assertEquals("EGKK", flight.getArrivalIcao());
+        assertEquals("EGJJ", null /*flight.getDepartureIcao()*/);
+        assertEquals("EGKK", null /*flight.getArrivalIcao()*/);
 
         flight = sortedFlights.get(2);
-        assertEquals("EGKK", flight.getDepartureIcao());
-        assertEquals("EHAM", flight.getArrivalIcao());
+        assertEquals("EGKK", null /*flight.getDepartureIcao()*/);
+        assertEquals("EHAM", null /*flight.getArrivalIcao()*/);
 
         flight = sortedFlights.get(3);
-        assertEquals("EHAM", flight.getDepartureIcao());
-        assertEquals("EHAM", flight.getArrivalIcao());
+        assertEquals("EHAM", null /*flight.getDepartureIcao()*/);
+        assertEquals("EHAM", null /*flight.getArrivalIcao()*/);
     }
 }

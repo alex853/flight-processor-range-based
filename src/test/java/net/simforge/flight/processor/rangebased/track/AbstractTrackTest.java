@@ -16,32 +16,41 @@ import java.io.InputStream;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 @Ignore
 public abstract class AbstractTrackTest {
 
     protected static void assertFlightRoute(final Flight1 flight,
-                                            final String expectedDepartureIcao,
-                                            final String expectedArrivalIcao) {
-        assertEquals(expectedDepartureIcao, flight.getDepartureIcao());
-        assertEquals(expectedArrivalIcao, flight.getArrivalIcao());
+                                            final String expectedTakeoffIcao,
+                                            final String expectedLandingIcao) {
+        assertPositionIcao(expectedTakeoffIcao, flight.getTakeoff());
+        assertPositionIcao(expectedLandingIcao, flight.getLanding());
     }
 
     protected static void assertFlight(final Flight1 flight,
                                        final String expectedCallsign,
                                        final String expectedAirTime,
                                        final String expectedRegNo,
-                                       final String expectedDepartureIcao,
-                                       final String expectedArrivalIcao,
+                                       final String expectedTakeoffIcao,
+                                       final String expectedLandingIcao,
                                        final boolean expectedComplete,
                                        final Track1.TrackingMode expectedTrackingMode) {
         assertEquals(expectedCallsign, flight.getCallsign());
         assertEquals(expectedAirTime, flight.getAircraftType());
         assertEquals(expectedRegNo, flight.getAircraftRegNo());
-        assertEquals(expectedDepartureIcao, flight.getDepartureIcao());
-        assertEquals(expectedArrivalIcao, flight.getArrivalIcao());
+        assertPositionIcao(expectedTakeoffIcao, flight.getTakeoff());
+        assertPositionIcao(expectedLandingIcao, flight.getLanding());
         assertEquals(expectedComplete, flight.getComplete());
         assertEquals(expectedTrackingMode.name(), flight.getTrackingMode());
+    }
+
+    private static void assertPositionIcao(String expectedIcao, Flight1.Position1 actualPosition) {
+        if (expectedIcao != null) {
+            assertEquals(expectedIcao, actualPosition.getIcao());
+        } else {
+            assertNull(actualPosition);
+        }
     }
 
     protected List<Flight1> process(final int pilotNumber,

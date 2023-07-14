@@ -63,28 +63,37 @@ public class Track1 {
     }
 
     private Flight1 buildFlight1(TrackedFlight trackedFlight) {
-        Position takeoffPosition = trackedFlight.takeoffEvent.getNextRange().getFirstPosition();
-        Position landingPosition = trackedFlight.landingEvent.getPreviousRange().getLastPosition();
+        Position firstSeenPosition = trackedFlight.firstSeenEvent.getNextRange().getFirstPosition();
+        Position takeoffPosition = trackedFlight.takeoffEvent != null
+                ? trackedFlight.takeoffEvent.getNextRange().getFirstPosition()
+                : null;
+        Position landingPosition = trackedFlight.landingEvent != null
+                ? trackedFlight.landingEvent.getPreviousRange().getLastPosition()
+                : null;
+        Position lastSeenPosition = trackedFlight.lastSeenEvent.getPreviousRange().getLastPosition();
 
         Flight1 flight1 = new Flight1();
 
         flight1.setPilotNumber(pilotNumber);
-        flight1.setDateOfFlight(takeoffPosition.getReportInfo().getDt().toLocalDate());
-        flight1.setCallsign(takeoffPosition.getCallsign());
-        flight1.setAircraftType(takeoffPosition.getFpAircraftType());
-        flight1.setAircraftRegNo(takeoffPosition.getRegNo());
-        flight1.setDepartureIcao(takeoffPosition.getAirportIcao());
-        flight1.setDepartureTime(JavaTime.hhmm.format(takeoffPosition.getReportInfo().getDt()));
-        flight1.setArrivalIcao(landingPosition.getAirportIcao());
-        flight1.setArrivalTime(JavaTime.hhmm.format(landingPosition.getReportInfo().getDt()));
+        flight1.setDateOfFlight(JavaTime.yMd.format(firstSeenPosition.getReportInfo().getDt()));
+        flight1.setCallsign(firstSeenPosition.getCallsign()); // todo ak3 frequency-based determination
+        flight1.setAircraftType(firstSeenPosition.getFpAircraftType()); // todo ak3 frequency-based determination
+        flight1.setAircraftRegNo(firstSeenPosition.getRegNo()); // todo ak3 frequency-based determination
+//        flight1.setDepartureIcao(takeoffPosition.getAirportIcao());
+//        flight1.setDepartureTime(JavaTime.hhmm.format(takeoffPosition.getReportInfo().getDt()));
+//        flight1.setArrivalIcao(landingPosition.getAirportIcao());
+//        flight1.setArrivalTime(JavaTime.hhmm.format(landingPosition.getReportInfo().getDt()));
 
         Map<String, Double> distanceAndTime = calculateDistanceAndTime(trackedFlight);
         flight1.setDistanceFlown(distanceAndTime.get("total.distance"));
+        // todo ak flight time
         flight1.setAirTime(distanceAndTime.get("total.airtime"));
-        flight1.setFlightplan(Flightplan.fromPosition(takeoffPosition));
+        flight1.setFlightplan(Flightplan.fromPosition(firstSeenPosition)); // todo ak somehow to calculate most populated flightplan
 
-        flight1.setTakeoff(Flight1.position(takeoffPosition));
-        flight1.setLanding(Flight1.position(landingPosition));
+        flight1.setFirstSeen(Flight1.position(firstSeenPosition));
+        flight1.setTakeoff(takeoffPosition != null ? Flight1.position(takeoffPosition) : null);
+        flight1.setLanding(landingPosition != null ? Flight1.position(landingPosition) : null);
+        flight1.setLastSeen(Flight1.position(lastSeenPosition));
 
         flight1.setComplete(trackedFlight.trackingMode != TrackingMode.Incomplete);
         flight1.setTrackingMode(trackedFlight.trackingMode.name());
@@ -96,8 +105,8 @@ public class Track1 {
     private Map<String, Double> calculateDistanceAndTime(TrackedFlight trackedFlight) {
         Map<String, Double> result = new HashMap<>();
 
-        TrackedEvent currentEvent = trackedFlight.takeoffEvent;
-        while (currentEvent != trackedFlight.landingEvent) {
+        TrackedEvent currentEvent = trackedFlight.firstSeenEvent;
+        while (currentEvent != trackedFlight.lastSeenEvent) {
             TrackedRange range = currentEvent.getNextRange();
             double distance;
             double duration;
@@ -254,10 +263,9 @@ public class Track1 {
 
     // stage 1 - recognition of complete flights, events will be marked occupied
     // stage 2 - look at non-occupied events and try to build non-completed flights
-    // stage 3 - look at on-ground ranges and attach them to takeoff and landing events
+    // stage 3 - look at on-ground ranges and attach them to takeoff and landing events // todo ak
     private void buildFlights() {
         try (BMC ignored = BMC.start("Track1.buildFlights")) {
-            // todo ak add support for incomplete flights
             for (TrackedEvent event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
                 if (event.getType() != EventType.Takeoff) {
                     continue;
@@ -336,7 +344,12 @@ public class Track1 {
                     }
                 }
 
-                TrackedFlight flight = new TrackedFlight(firstFlyingRange.getPreviousEvent(), lastFlyingRange.getNextEvent(), TrackingMode.Incomplete);
+                TrackedFlight flight = TrackedFlight.first2last(
+                        firstFlyingRange.getPreviousEvent(),
+                        firstFlyingRange.getPreviousEvent().getType() == EventType.Takeoff ? firstFlyingRange.getPreviousEvent() : null,
+                        lastFlyingRange.getNextEvent().getType() == EventType.Landing ? lastFlyingRange.getNextEvent() : null,
+                        lastFlyingRange.getNextEvent(),
+                        TrackingMode.Incomplete);
                 flight.markRanges();
                 flights.add(flight);
             }
@@ -353,7 +366,7 @@ public class Track1 {
 
             TrackedEvent nextEvent = nextRange.getNextEvent();
             if (nextEvent.getType() == EventType.Landing) {
-                return new TrackedFlight(takeoffEvent, nextEvent, TrackingMode.Ideal);
+                return TrackedFlight.takeoff2landing(takeoffEvent, nextEvent, TrackingMode.Ideal);
             } else if (nextEvent.getType() == EventType.TouchAndGo) {
                 event = nextEvent;
                 // and continue
@@ -380,7 +393,7 @@ public class Track1 {
             if (nextEvent == endOfTrack) {
                 return null;
             } else if (nextEvent.getType() == EventType.Landing) {
-                return new TrackedFlight(takeoffEvent, nextEvent, TrackingMode.TAS);
+                return TrackedFlight.takeoff2landing(takeoffEvent, nextEvent, TrackingMode.TAS);
             } else if (nextEvent.getType() == EventType.TouchAndGo) {
                 lastFlyingRange = nextEvent.getNextRange();
                 continue;
@@ -475,7 +488,7 @@ public class Track1 {
             if (nextEvent == endOfTrack) {
                 return null;
             } else if (nextEvent.getType() == EventType.Landing) {
-                return new TrackedFlight(takeoffEvent, nextEvent, TrackingMode.Ellipse);
+                return TrackedFlight.takeoff2landing(takeoffEvent, nextEvent, TrackingMode.Ellipse);
             } else if (nextEvent.getType() == EventType.TouchAndGo) {
                 lastFlyingRange = nextEvent.getNextRange();
                 continue;
@@ -725,24 +738,41 @@ public class Track1 {
     }
 
     static class TrackedFlight {
-        // todo ak firstSeenEvent
+        private TrackedEvent firstSeenEvent;
         private TrackedEvent takeoffEvent;
         private TrackedEvent landingEvent;
-        // todo ak lastSeenEvent
+        private TrackedEvent lastSeenEvent;
         private TrackingMode trackingMode;
 
-        public TrackedFlight(TrackedEvent takeoffEvent, TrackedEvent landingEvent, TrackingMode trackingMode) {
-            this.takeoffEvent = takeoffEvent;
-            this.landingEvent = landingEvent;
-            this.trackingMode = trackingMode;
+        private TrackedFlight() {
         }
 
         public void markRanges() {
-            TrackedEvent currentEvent = takeoffEvent; // todo ak first/last seen
-            while (currentEvent != landingEvent) { // todo ak first/last seen
+            TrackedEvent currentEvent = firstSeenEvent;
+            while (currentEvent != lastSeenEvent) {
                 currentEvent.getNextRange().flight = this;
                 currentEvent = currentEvent.getNextRange().getNextEvent();
             }
+        }
+
+        public static TrackedFlight takeoff2landing(TrackedEvent takeoffEvent, TrackedEvent landingEvent, TrackingMode trackingMode) {
+            TrackedFlight flight = new TrackedFlight();
+            flight.firstSeenEvent = takeoffEvent;
+            flight.takeoffEvent = takeoffEvent;
+            flight.landingEvent = landingEvent;
+            flight.lastSeenEvent = landingEvent;
+            flight.trackingMode = trackingMode;
+            return flight;
+        }
+
+        public static TrackedFlight first2last(TrackedEvent firstSeenEvent, TrackedEvent takeoffEvent, TrackedEvent landingEvent, TrackedEvent lastSeenEvent, TrackingMode trackingMode) {
+            TrackedFlight flight = new TrackedFlight();
+            flight.firstSeenEvent = firstSeenEvent;
+            flight.takeoffEvent = takeoffEvent;
+            flight.landingEvent = landingEvent;
+            flight.lastSeenEvent = lastSeenEvent;
+            flight.trackingMode = trackingMode;
+            return flight;
         }
     }
 
