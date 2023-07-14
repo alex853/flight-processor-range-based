@@ -419,8 +419,37 @@ public class Track1 {
                 boolean rangeBeforeTakeoff = range.getNextEvent().getType() == EventType.Takeoff;
 
                 if (rangeAfterLanding && rangeBeforeTakeoff) {
-                    // todo split somehow
-                    throw new UnsupportedOperationException();
+                    final List<Position> positions = range.getPositions();
+                    final Position whenCallsignChanged = findWhenCallsignChanged(positions);
+                    final Position splitByPosition = whenCallsignChanged != null
+                            ? whenCallsignChanged
+                            : positions.get(positions.size() / 2);
+                    TrackedEvent newEvent = range.splitByEventWithoutInclusion(EventType.NewFlightplanSubmittedAfterArrival, splitByPosition);
+
+                    TrackedFlight landedFlight = range.getPreviousEvent().getPreviousRange().getFlight();
+                    flights.remove(landedFlight);
+
+                    TrackedFlight newLandedFlight = TrackedFlight.first2last(
+                            landedFlight.firstSeenEvent,
+                            landedFlight.takeoffEvent,
+                            landedFlight.landingEvent,
+                            newEvent,
+                            landedFlight.trackingMode);
+                    newLandedFlight.markRanges();
+                    flights.add(newLandedFlight);
+
+                    TrackedFlight departingFlight = range.getNextEvent().getNextRange().getFlight();
+                    flights.remove(departingFlight);
+
+                    TrackedFlight newDepartingFlight = TrackedFlight.first2last(
+                            newEvent,
+                            departingFlight.takeoffEvent,
+                            departingFlight.landingEvent,
+                            departingFlight.lastSeenEvent,
+                            departingFlight.trackingMode);
+                    newDepartingFlight.markRanges();
+                    flights.add(newDepartingFlight);
+
                 } else if (rangeAfterLanding) {
                     // after landing taxi in and unboarding
                     TrackedFlight flight = range.getPreviousEvent().getPreviousRange().getFlight();
@@ -455,6 +484,18 @@ public class Track1 {
                 }
             }
         }
+    }
+
+    private Position findWhenCallsignChanged(List<Position> positions) {
+        for (int i = 0; i < positions.size() - 1; i++) {
+            final Position p1 = positions.get(i);
+            final Position p2 = positions.get(i + 1);
+
+            if (!p1.getCallsign().equals(p2.getCallsign())) {
+                return p2;
+            }
+        }
+        return null;
     }
 
     private TrackedFlight tryToBuildIdealFlight(TrackedEvent takeoffEvent) {
@@ -702,7 +743,8 @@ public class Track1 {
         Offline,
         EndOfTrack,
         TouchAndGo,
-        UnrealisticJump
+        UnrealisticJump,
+        NewFlightplanSubmittedAfterArrival
     }
 
     static class TrackedRange {

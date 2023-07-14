@@ -50,4 +50,44 @@ public class Test__OnGroundTime extends AbstractTrackTest {
 
         assertEquals(0, flights.size());
     }
+
+    @Test
+    public void test__splitting_ground_time_between_two_flights() throws IOException {
+        List<Flight1> flights = process(913904,
+                "/snapshots/pilot-913904_2018-11-23.csv",
+                "20181123071102",
+                "20181123103005");
+
+        assertEquals(2, flights.size());
+
+        Flight1 flight1 = flights.get(0);
+        assertFlight(flight1,
+                "BAW70Y",
+                null, // todo ak flightplan stats
+                "",
+                "EGKK",
+                "EGJJ",
+                true,
+                Track1.TrackingMode.Ideal);
+        assertFlightTimes(flight1,
+                "07:16",
+                "07:51",
+                "08:42",
+                "08:54");
+
+        Flight1 flight2 = flights.get(1);
+        assertFlight(flight2,
+                "BAW160J",
+                "A319",
+                "",
+                "EGJJ",
+                "EGKK",
+                true,
+                Track1.TrackingMode.Ideal);
+        assertFlightTimes(flight2,
+                "08:57",
+                "09:23",
+                "10:03",
+                "10:09");
+    }
 }
