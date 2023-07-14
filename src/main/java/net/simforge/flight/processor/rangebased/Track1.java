@@ -47,9 +47,13 @@ public class Track1 {
             }
 
             track.buildRanges();
-            track.printRanges();
-            track.buildFlights();
-            track.printRanges();
+            track.printRanges("Stage 0 - ranges prepared");
+            track.buildCompleteFlights();
+            track.printRanges("Stage 1 - complete flights processed");
+            track.buildIncompleteFlights();
+            track.printRanges("Stage 2 - incomplete flights processed");
+            track.joinOnGroundRanges();
+            track.printRanges("Stage 3 - on-groung ranges joined");
 
             return track;
         }
@@ -79,15 +83,11 @@ public class Track1 {
         flight1.setCallsign(firstSeenPosition.getCallsign()); // todo ak3 frequency-based determination
         flight1.setAircraftType(firstSeenPosition.getFpAircraftType()); // todo ak3 frequency-based determination
         flight1.setAircraftRegNo(firstSeenPosition.getRegNo()); // todo ak3 frequency-based determination
-//        flight1.setDepartureIcao(takeoffPosition.getAirportIcao());
-//        flight1.setDepartureTime(JavaTime.hhmm.format(takeoffPosition.getReportInfo().getDt()));
-//        flight1.setArrivalIcao(landingPosition.getAirportIcao());
-//        flight1.setArrivalTime(JavaTime.hhmm.format(landingPosition.getReportInfo().getDt()));
 
         Map<String, Double> distanceAndTime = calculateDistanceAndTime(trackedFlight);
         flight1.setDistanceFlown(distanceAndTime.get("total.distance"));
-        // todo ak flight time
-        flight1.setAirTime(distanceAndTime.get("total.airtime"));
+        flight1.setFlightTime(distanceAndTime.get("total.time.flight"));
+        flight1.setAirTime(distanceAndTime.get("total.time.air"));
         flight1.setFlightplan(Flightplan.fromPosition(firstSeenPosition)); // todo ak somehow to calculate most populated flightplan
 
         flight1.setFirstSeen(Flight1.position(firstSeenPosition));
@@ -109,20 +109,26 @@ public class Track1 {
         while (currentEvent != trackedFlight.lastSeenEvent) {
             TrackedRange range = currentEvent.getNextRange();
             double distance;
-            double duration;
+            double flightTime;
+            double airTime;
             if (range.getType() == RangeType.Flying) {
                 distance = range.getDistance();
-                duration = range.getDuration().getSeconds() / 3600.0;
+                flightTime = airTime = range.getDuration().getSeconds() / 3600.0;
+            } else if (range.getType() == RangeType.OnGround) {
+                distance = 0;
+                flightTime = range.getDuration().getSeconds() / 3600.0;
+                airTime = 0;
             } else if (range.getType() == RangeType.Offline) {
                 distance = Geo.distance(range.previousEvent.previousRange.getLastPosition().getCoords(),
                         range.nextEvent.nextRange.getFirstPosition().getCoords());
-                duration = range.getDuration().getSeconds() / 3600.0;
+                flightTime = airTime = range.getDuration().getSeconds() / 3600.0;
             } else {
                 throw new IllegalStateException();
             }
 
             result.merge("total.distance", distance, Double::sum);
-            result.merge("total.airtime", duration, Double::sum);
+            result.merge("total.time.flight", flightTime, Double::sum);
+            result.merge("total.time.air", airTime, Double::sum);
 
             currentEvent = range.nextEvent;
         }
@@ -245,7 +251,8 @@ public class Track1 {
         }
     }
 
-    private void printRanges() {
+    private void printRanges(String stageName) {
+        System.out.println("===== " + stageName + " =================================================================");
         TrackedRange range;
         TrackedEvent event = startOfTrack;
         while (event != endOfTrack) {
@@ -261,11 +268,8 @@ public class Track1 {
         flights.forEach(System.out::println);
     }
 
-    // stage 1 - recognition of complete flights, events will be marked occupied
-    // stage 2 - look at non-occupied events and try to build non-completed flights
-    // stage 3 - look at on-ground ranges and attach them to takeoff and landing events // todo ak
-    private void buildFlights() {
-        try (BMC ignored = BMC.start("Track1.buildFlights")) {
+    private void buildCompleteFlights() {
+        try (BMC ignored = BMC.start("Track1.buildCompleteFlights")) {
             for (TrackedEvent event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
                 if (event.getType() != EventType.Takeoff) {
                     continue;
@@ -289,7 +293,11 @@ public class Track1 {
                     flights.add(flight);
                 }
             }
+        }
+    }
 
+    private void buildIncompleteFlights() {
+        try (BMC ignored = BMC.start("Track1.buildIncompleteFlights")) {
             for (TrackedRange range = startOfTrack.getNextRange(); range != null; range = range.getNextEvent().getNextRange()) {
                 if (range.getFlight() != null
                     || range.getType() != RangeType.Flying) {
@@ -352,6 +360,46 @@ public class Track1 {
                         TrackingMode.Incomplete);
                 flight.markRanges();
                 flights.add(flight);
+            }
+        }
+    }
+
+    private void joinOnGroundRanges() {
+        try (BMC ignored = BMC.start("Track1.joinOnGroundRanges")) {
+            for (TrackedRange range = startOfTrack.getNextRange(); range != null; range = range.getNextEvent().getNextRange()) {
+                if (range.getFlight() != null
+                        || range.getType() != RangeType.OnGround) {
+                    continue;
+                }
+
+                boolean isFlightOnLeft = range.getPreviousEvent().getType() == EventType.Landing;
+                boolean isFlightOnRight = range.getNextEvent().getType() == EventType.Takeoff;
+
+                if (isFlightOnLeft && isFlightOnRight) {
+                    // todo split somehow
+                    throw new UnsupportedOperationException();
+                } else if (isFlightOnLeft) {
+                    // after landing taxi in and unboarding
+                    TrackedFlight flight = range.getPreviousEvent().getPreviousRange().getFlight();
+                    flights.remove(flight);
+
+                    TrackedFlight newFlight = TrackedFlight.first2last(flight.firstSeenEvent, flight.takeoffEvent, flight.landingEvent, range.getNextEvent(), flight.trackingMode);
+                    newFlight.markRanges();
+                    flights.add(newFlight);
+
+                    // todo ak3 limit on-ground time by some time (30 mins?)
+                } else { // isFlightOnRight
+                    // boarding and before takeoff taxi out
+                    TrackedFlight flight = range.getNextEvent().getNextRange().getFlight();
+                    flights.remove(flight);
+
+                    TrackedFlight newFlight = TrackedFlight.first2last(range.getPreviousEvent(), flight.takeoffEvent, flight.landingEvent, flight.lastSeenEvent, flight.trackingMode);
+                    newFlight.markRanges();
+                    flights.add(newFlight);
+
+                    // todo ak3 limit on-ground time by some time (30 mins?)
+                    // todo ak3 try to look at actual taxi time?
+                }
             }
         }
     }
@@ -773,6 +821,16 @@ public class Track1 {
             flight.lastSeenEvent = lastSeenEvent;
             flight.trackingMode = trackingMode;
             return flight;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Flight [%s %s -> %s %s] #%s",
+                    firstSeenEvent.getNextRange().getFirstPosition().getAirportIcao(),
+                    firstSeenEvent.getNextRange().getFirstPosition().getReportInfo().getDt().format(JavaTime.hhmm),
+                    lastSeenEvent.getPreviousRange().getLastPosition().getReportInfo().getDt().format(JavaTime.hhmm),
+                    lastSeenEvent.getPreviousRange().getLastPosition().getAirportIcao(),
+                    hashCode());
         }
     }
 

@@ -12,6 +12,7 @@ import static org.junit.Assert.assertEquals;
 public class Test__NonCompleteCases extends AbstractTrackTest {
 
     private static final int pilotNumber = 811636;
+
     @Test
     public void test__tracked_till_midflight() throws IOException {
         List<Flight1> flights = process(pilotNumber,

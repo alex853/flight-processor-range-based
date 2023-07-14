@@ -14,6 +14,7 @@ public class Flight1 {
     private String aircraftRegNo;
 
     private Double distanceFlown;
+    private Double flightTime;
     private Double airTime;
     private Flightplan flightplan;
 
@@ -71,6 +72,14 @@ public class Flight1 {
 
     public void setDistanceFlown(Double distanceFlown) {
         this.distanceFlown = distanceFlown;
+    }
+
+    public Double getFlightTime() {
+        return flightTime;
+    }
+
+    public void setFlightTime(Double flightTime) {
+        this.flightTime = flightTime;
     }
 
     public Double getAirTime() {
