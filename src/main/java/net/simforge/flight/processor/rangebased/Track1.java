@@ -372,28 +372,38 @@ public class Track1 {
                     continue;
                 }
 
-                boolean isFlightOnLeft = range.getPreviousEvent().getType() == EventType.Landing;
-                boolean isFlightOnRight = range.getNextEvent().getType() == EventType.Takeoff;
+                boolean rangeAfterLanding = range.getPreviousEvent().getType() == EventType.Landing;
+                boolean rangeBeforeTakeoff = range.getNextEvent().getType() == EventType.Takeoff;
 
-                if (isFlightOnLeft && isFlightOnRight) {
+                if (rangeAfterLanding && rangeBeforeTakeoff) {
                     // todo split somehow
                     throw new UnsupportedOperationException();
-                } else if (isFlightOnLeft) {
+                } else if (rangeAfterLanding) {
                     // after landing taxi in and unboarding
                     TrackedFlight flight = range.getPreviousEvent().getPreviousRange().getFlight();
                     flights.remove(flight);
 
-                    TrackedFlight newFlight = TrackedFlight.first2last(flight.firstSeenEvent, flight.takeoffEvent, flight.landingEvent, range.getNextEvent(), flight.trackingMode);
+                    TrackedFlight newFlight = TrackedFlight.first2last(
+                            flight.firstSeenEvent,
+                            flight.takeoffEvent,
+                            flight.landingEvent,
+                            range.getNextEvent(),
+                            flight.trackingMode);
                     newFlight.markRanges();
                     flights.add(newFlight);
 
                     // todo ak3 limit on-ground time by some time (30 mins?)
-                } else { // isFlightOnRight
+                } else if (rangeBeforeTakeoff) {
                     // boarding and before takeoff taxi out
                     TrackedFlight flight = range.getNextEvent().getNextRange().getFlight();
                     flights.remove(flight);
 
-                    TrackedFlight newFlight = TrackedFlight.first2last(range.getPreviousEvent(), flight.takeoffEvent, flight.landingEvent, flight.lastSeenEvent, flight.trackingMode);
+                    TrackedFlight newFlight = TrackedFlight.first2last(
+                            range.getPreviousEvent(),
+                            flight.takeoffEvent,
+                            flight.landingEvent,
+                            flight.lastSeenEvent,
+                            flight.trackingMode);
                     newFlight.markRanges();
                     flights.add(newFlight);
 

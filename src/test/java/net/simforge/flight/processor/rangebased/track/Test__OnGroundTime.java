@@ -38,4 +38,14 @@ public class Test__OnGroundTime extends AbstractTrackTest {
         assertEquals(9.30, flight.getFlightTime(), 0.05);
         assertEquals(8.75, flight.getAirTime(), 0.05);
     }
+
+    @Test
+    public void test__just_connected_shortly_on_ground_without_flying__no_fail_expected__no_flights_expected() throws IOException {
+        List<Flight1> flights = process(811636,
+                "/snapshots/pilot-811636_from-1000000_amount-127321.csv",
+                "20200429082154",
+                "20200429092854");
+
+        assertEquals(0, flights.size());
+    }
 }
