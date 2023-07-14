@@ -30,14 +30,14 @@ public abstract class AbstractTrackTest {
 
     protected static void assertFlight(final Flight1 flight,
                                        final String expectedCallsign,
-                                       final String expectedAirTime,
+                                       final String expectedAircraftType,
                                        final String expectedRegNo,
                                        final String expectedTakeoffIcao,
                                        final String expectedLandingIcao,
                                        final boolean expectedComplete,
                                        final Track1.TrackingMode expectedTrackingMode) {
         assertEquals(expectedCallsign, flight.getCallsign());
-        assertEquals(expectedAirTime, flight.getAircraftType());
+        assertEquals(expectedAircraftType, flight.getAircraftType());
         assertEquals(expectedRegNo, flight.getAircraftRegNo());
         assertPositionIcao(expectedTakeoffIcao, flight.getTakeoff());
         assertPositionIcao(expectedLandingIcao, flight.getLanding());

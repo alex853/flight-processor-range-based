@@ -2,11 +2,13 @@ package net.simforge.flight.core;
 
 import net.simforge.networkview.core.Position;
 
+import java.util.Objects;
+
 public class Flightplan {
-    private String aircraftType;
-    private String regNo;
-    private String departure;
-    private String destination;
+    private final String aircraftType;
+    private final String regNo;
+    private final String departure;
+    private final String destination;
 
     public Flightplan(String aircraftType, String regNo, String departure, String destination) {
         this.aircraftType = aircraftType;
@@ -46,10 +48,10 @@ public class Flightplan {
 
         Flightplan that = (Flightplan) o;
 
-        if (aircraftType != null ? !aircraftType.equals(that.aircraftType) : that.aircraftType != null) return false;
-        if (regNo != null ? !regNo.equals(that.regNo) : that.regNo != null) return false;
-        if (departure != null ? !departure.equals(that.departure) : that.departure != null) return false;
-        if (destination != null ? !destination.equals(that.destination) : that.destination != null) return false;
+        if (!Objects.equals(aircraftType, that.aircraftType)) return false;
+        if (!Objects.equals(regNo, that.regNo)) return false;
+        if (!Objects.equals(departure, that.departure)) return false;
+        if (!Objects.equals(destination, that.destination)) return false;
 
         return true;
     }

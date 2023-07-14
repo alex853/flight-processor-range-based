@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 public class Test__OnGroundTime extends AbstractTrackTest {
 
@@ -63,7 +62,7 @@ public class Test__OnGroundTime extends AbstractTrackTest {
         Flight1 flight1 = flights.get(0);
         assertFlight(flight1,
                 "BAW70Y",
-                null, // todo ak flightplan stats
+                "A319",
                 "",
                 "EGKK",
                 "EGJJ",

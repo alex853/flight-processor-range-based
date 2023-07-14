@@ -17,6 +17,7 @@ import net.simforge.refdata.aircrafts.apd.AircraftPerformanceDatabase;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -78,17 +79,22 @@ public class Track1 {
 
         Flight1 flight1 = new Flight1();
 
+        final String mostFrequentCallsign = computeMostFrequent(trackedFlight, Position::getCallsign);
+        final String mostFrequentAircraftType = computeMostFrequent(trackedFlight, Position::getFpAircraftType);
+        final String mostFrequentRegNo = computeMostFrequent(trackedFlight, Position::getRegNo);
+        final Flightplan mostFrequentFlightplan = computeMostFrequent(trackedFlight, Flightplan::fromPosition);
+
         flight1.setPilotNumber(pilotNumber);
         flight1.setDateOfFlight(JavaTime.yMd.format(firstSeenPosition.getReportInfo().getDt()));
-        flight1.setCallsign(firstSeenPosition.getCallsign()); // todo ak3 frequency-based determination
-        flight1.setAircraftType(firstSeenPosition.getFpAircraftType()); // todo ak3 frequency-based determination
-        flight1.setAircraftRegNo(firstSeenPosition.getRegNo()); // todo ak3 frequency-based determination
+        flight1.setCallsign(mostFrequentCallsign);
+        flight1.setAircraftType(mostFrequentAircraftType);
+        flight1.setAircraftRegNo(mostFrequentRegNo);
 
         Map<String, Double> distanceAndTime = calculateDistanceAndTime(trackedFlight);
         flight1.setDistanceFlown(distanceAndTime.get("total.distance"));
         flight1.setFlightTime(distanceAndTime.get("total.time.flight"));
         flight1.setAirTime(distanceAndTime.get("total.time.air"));
-        flight1.setFlightplan(Flightplan.fromPosition(firstSeenPosition)); // todo ak somehow to calculate most populated flightplan
+        flight1.setFlightplan(mostFrequentFlightplan);
 
         flight1.setFirstSeen(Flight1.position(firstSeenPosition));
         flight1.setTakeoff(takeoffPosition != null ? Flight1.position(takeoffPosition) : null);
@@ -99,6 +105,29 @@ public class Track1 {
         flight1.setTrackingMode(trackedFlight.trackingMode.name());
 
         return flight1;
+    }
+
+    private <T> T computeMostFrequent(TrackedFlight trackedFlight, Function<Position, T> function) {
+        final Map<T, Integer> frequencies = new HashMap<>();
+        visitPositions(trackedFlight, position -> {
+            final T key = function.apply(position);
+            if (key != null) {
+                frequencies.compute(key, (k, count) -> (count != null ? count + 1 : 1));
+            }
+        });
+        Optional<Map.Entry<T, Integer>> maxEntry = frequencies.entrySet().stream()
+                .max(Map.Entry.comparingByValue());
+        return maxEntry.map(Map.Entry::getKey).orElse(null);
+    }
+
+    private void visitPositions(final TrackedFlight trackedFlight, final Consumer<Position> consumer) {
+        TrackedEvent currentEvent = trackedFlight.firstSeenEvent;
+        while (currentEvent != trackedFlight.lastSeenEvent) {
+            final TrackedRange nextRange = currentEvent.getNextRange();
+            List<Position> positions = nextRange.getPositions();
+            positions.forEach(consumer);
+            currentEvent = nextRange.getNextEvent();
+        }
     }
 
     // future to add online/offline, flighttime/airtime, etc
