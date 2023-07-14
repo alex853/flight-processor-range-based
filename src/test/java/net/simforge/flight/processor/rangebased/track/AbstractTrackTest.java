@@ -53,6 +53,21 @@ public abstract class AbstractTrackTest {
         }
     }
 
+    protected static void assertFlightTimes(Flight1 flight, String firstSeenTime, String takeoffTime, String landingTime, String lastSeenTime) {
+        AbstractTrackTest.assertTime(firstSeenTime, flight.getFirstSeen());
+        AbstractTrackTest.assertTime(takeoffTime, flight.getTakeoff());
+        AbstractTrackTest.assertTime(landingTime, flight.getLanding());
+        AbstractTrackTest.assertTime(lastSeenTime, flight.getLastSeen());
+    }
+
+    protected static void assertTime(String time, Flight1.Position1 position) {
+        if (time != null) {
+            assertEquals(time, position.getTime());
+        } else {
+            assertNull(position);
+        }
+    }
+
     protected List<Flight1> process(final int pilotNumber,
                                     final String csvSnapshot) throws IOException {
         InputStream is = AbstractTrackTest.class.getResourceAsStream(csvSnapshot);

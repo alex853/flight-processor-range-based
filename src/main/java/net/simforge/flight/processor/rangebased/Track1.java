@@ -62,7 +62,7 @@ public class Track1 {
     public List<Flight1> getFlights() {
         return flights.stream()
                 .map(this::buildFlight1)
-                .sorted(Flight1::compareByTakeoff)
+                .sorted(Flight1::compareByFirstSeen)
                 .collect(Collectors.toList());
     }
 
@@ -168,8 +168,23 @@ public class Track1 {
             }
             endOfTrack = range.endOfTrack();
 
-            // takeoff/landing section
+            // unrealistic jump section
             TrackedEvent event = startOfTrack;
+            while (event != endOfTrack) {
+                range = event.getNextRange();
+                if (range.getType() != RangeType.Online) {
+                    event = range.getNextEvent();
+                    continue;
+                }
+
+                checkForUnrealisticJumps(range);
+
+                event = range.getNextEvent();
+            }
+
+
+            // takeoff/landing section
+            event = startOfTrack;
             while (event != endOfTrack) {
                 range = event.getNextRange();
                 if (range.getType() != RangeType.Online) {
@@ -211,6 +226,27 @@ public class Track1 {
         return touchAndGoEvent;
     }
 
+    private void checkForUnrealisticJumps(final TrackedRange outerRange) {
+        TrackedRange currentRange = outerRange;
+
+        List<Position> positions = new ArrayList<>(outerRange.getPositions());
+        for (int i = 0; i < positions.size() - 1; i++) {
+            Position p1 = positions.get(i);
+            Position p2 = positions.get(i + 1);
+
+            double distanceNm = Geo.distance(p1.getCoords(), p2.getCoords());
+            double timeHours = JavaTime.hoursBetween(p1.getReportInfo().getDt(), p2.getReportInfo().getDt());
+            int groundspeedKts = (int) (distanceNm / timeHours);
+
+            if (groundspeedKts < 2500) {
+                continue;
+            }
+
+            TrackedEvent newEvent = currentRange.splitByEventWithoutInclusion(EventType.UnrealisticJump, p2);
+            currentRange = newEvent.getNextRange();
+        }
+    }
+
     private void splitByTakeoffLandingEvents(TrackedRange outerRange) {
         TrackedRange currentRange = outerRange;
         RangeType currentRangeType = null;
@@ -232,13 +268,13 @@ public class Track1 {
 
             if (eachPositionRangeType == RangeType.Flying) {
                 Position previousPosition = positions.get(i - 1);
-                TrackedEvent newEvent = currentRange.splitByEvent(EventType.Takeoff, previousPosition);
+                TrackedEvent newEvent = currentRange.splitByEventInclusiveSplitPosition(EventType.Takeoff, previousPosition);
                 TrackedRange previousRange = newEvent.getPreviousRange();
                 previousRange.setType(RangeType.OnGround);
                 currentRangeType = RangeType.Flying;
                 currentRange = newEvent.getNextRange();
             } else {
-                TrackedEvent newEvent = currentRange.splitByEvent(EventType.Landing, currentPosition);
+                TrackedEvent newEvent = currentRange.splitByEventInclusiveSplitPosition(EventType.Landing, currentPosition);
                 TrackedRange previousRange = newEvent.getPreviousRange();
                 previousRange.setType(RangeType.Flying);
                 currentRangeType = RangeType.OnGround;
@@ -317,10 +353,13 @@ public class Track1 {
                         case StartOfTrack:
                         case Takeoff:
                             throw new IllegalStateException();
-                        case EndOfTrack:
+
                         case Landing:
+                        case EndOfTrack:
+                        case UnrealisticJump:
                             continueToRight = false;
                             break;
+
                         case Offline:
                             TrackedRange nextFlyingRange = getNextFlyingRange(lastFlyingRange);
                             if (nextFlyingRange == null) {
@@ -341,6 +380,7 @@ public class Track1 {
                             }
 
                             break;
+
                         case TouchAndGo:
                             TrackedRange flyingAfterTouchAndGo = lastFlyingRange.getNextEvent().getNextRange();
                             if (flyingAfterTouchAndGo.getFlight() != null
@@ -349,6 +389,9 @@ public class Track1 {
                             }
                             lastFlyingRange = flyingAfterTouchAndGo;
                             break;
+
+                        default:
+                            throw new IllegalStateException();
                     }
                 }
 
@@ -456,6 +499,8 @@ public class Track1 {
                 lastFlyingRange = nextEvent.getNextRange();
                 continue;
                 // and continue
+            } else if (nextEvent.getType() == EventType.UnrealisticJump) {
+                return null;
             }
 
             TrackedRange nextRange = nextEvent.getNextRange();
@@ -551,6 +596,8 @@ public class Track1 {
                 lastFlyingRange = nextEvent.getNextRange();
                 continue;
                 // and continue
+            } else if (nextEvent.getType() == EventType.UnrealisticJump) {
+                return null;
             }
 
             TrackedRange nextRange = nextEvent.getNextRange();
@@ -654,7 +701,8 @@ public class Track1 {
         Online,
         Offline,
         EndOfTrack,
-        TouchAndGo
+        TouchAndGo,
+        UnrealisticJump
     }
 
     static class TrackedRange {
@@ -698,8 +746,7 @@ public class Track1 {
             return new TrackedEvent(this, EventType.EndOfTrack, getLastPosition().getReportInfo().getReport());
         }
 
-        // todo checks, move out
-        TrackedEvent splitByEvent(EventType eventType, Position splitPosition) {
+        TrackedEvent splitByEventInclusiveSplitPosition(EventType eventType, Position splitPosition) {
             int splitIndex = positions.indexOf(splitPosition);
 
             TrackedRange leftRange = new TrackedRange();
@@ -707,6 +754,28 @@ public class Track1 {
             leftRange.previousEvent = this.previousEvent;
             leftRange.type = this.type;
             leftRange.positions = this.positions.subList(0, splitIndex + 1);
+
+            TrackedEvent newEvent = new TrackedEvent(leftRange, eventType, splitPosition.getReportInfo().getReport());
+
+            TrackedRange rightRange = new TrackedRange();
+            newEvent.nextRange = rightRange;
+            rightRange.previousEvent = newEvent;
+            rightRange.type = this.type;
+            rightRange.positions = this.positions.subList(splitIndex, this.positions.size());
+            rightRange.nextEvent = this.nextEvent;
+            this.nextEvent.previousRange = rightRange;
+
+            return newEvent;
+        }
+
+        TrackedEvent splitByEventWithoutInclusion(EventType eventType, Position splitPosition) {
+            int splitIndex = positions.indexOf(splitPosition);
+
+            TrackedRange leftRange = new TrackedRange();
+            this.previousEvent.nextRange = leftRange;
+            leftRange.previousEvent = this.previousEvent;
+            leftRange.type = this.type;
+            leftRange.positions = this.positions.subList(0, splitIndex);
 
             TrackedEvent newEvent = new TrackedEvent(leftRange, eventType, splitPosition.getReportInfo().getReport());
 

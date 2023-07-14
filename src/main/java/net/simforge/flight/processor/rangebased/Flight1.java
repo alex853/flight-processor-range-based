@@ -150,8 +150,8 @@ public class Flight1 {
         return new Position1(position);
     }
 
-    public static int compareByTakeoff(Flight1 flight1, Flight1 flight2) {
-        return flight1.getTakeoff().getReportInfo().getReport().compareTo(flight2.getTakeoff().getReportInfo().getReport());
+    public static int compareByFirstSeen(Flight1 flight1, Flight1 flight2) {
+        return flight1.getFirstSeen().getReportInfo().getReport().compareTo(flight2.getFirstSeen().getReportInfo().getReport());
     }
 
     public static class Position1 {

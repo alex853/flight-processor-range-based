@@ -26,7 +26,7 @@ public class Test__Pilot913904__2018_11_23__four_legs_flyday extends AbstractTes
         assertEquals(4, flights.size());
 
         List<Flight1> sortedFlights = new ArrayList<>(flights);
-        sortedFlights.sort(Flight1::compareByTakeoff);
+        sortedFlights.sort(Flight1::compareByFirstSeen);
 
         Flight1 flight = sortedFlights.get(0);
         assertEquals("EGKK", null /*flight.getDepartureIcao()*/);

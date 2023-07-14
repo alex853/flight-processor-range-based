@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class Test__OnGroundTime extends AbstractTrackTest {
 
@@ -30,10 +31,11 @@ public class Test__OnGroundTime extends AbstractTrackTest {
                 true,
                 Track1.TrackingMode.Ideal);
 
-        assertEquals("08:03", flight.getFirstSeen().getTime());
-        assertEquals("08:29", flight.getTakeoff().getTime());
-        assertEquals("17:13", flight.getLanding().getTime());
-        assertEquals("17:22", flight.getLastSeen().getTime());
+        assertFlightTimes(flight,
+                "08:03",
+                "08:29",
+                "17:13",
+                "17:22");
 
         assertEquals(9.30, flight.getFlightTime(), 0.05);
         assertEquals(8.75, flight.getAirTime(), 0.05);

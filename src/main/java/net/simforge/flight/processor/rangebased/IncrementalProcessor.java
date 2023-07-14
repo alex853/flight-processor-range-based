@@ -111,7 +111,7 @@ public class IncrementalProcessor {
 
             Collection<Flight1> unsortedFlights = flightStorageService.loadFlights(pilotNumber, processTrackSinceReport, processTrackTillReport);
             List<Flight1> oldFlights = new ArrayList<>(unsortedFlights);
-            oldFlights.sort(Flight1::compareByTakeoff);
+            oldFlights.sort(Flight1::compareByFirstSeen);
 
             if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 Flight1 firstFlight = oldFlights.get(0);
