@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+@Deprecated
 public class ProcessorPOC {
     private static final Logger logger = LoggerFactory.getLogger(ProcessorPOC.class);
 

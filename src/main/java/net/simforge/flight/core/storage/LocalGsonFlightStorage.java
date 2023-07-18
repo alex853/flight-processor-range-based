@@ -72,15 +72,11 @@ public class LocalGsonFlightStorage implements FlightStorageService {
     }
 
     private File flightsFolder(int pilotNumber) {
-        return new File(storageRoot, pilotFolderName(pilotNumber) + "/flights");
+        return new File(storageRoot, LocalGsonFileStorageRules.pilotFolderName(pilotNumber) + "/flights");
     }
 
     private File flightFile(Flight1 flight) {
-        return new File(flightsFolder(flight.getPilotNumber()), flight.getTakeoff().getReportInfo().getReport() + ".json");
+        return new File(flightsFolder(flight.getPilotNumber()), flight.getFirstSeen().getReportInfo().getReport() + ".json");
     }
 
-    private String pilotFolderName(int pilotNumber) {
-        String pilotNumberGroup = (pilotNumber / 1000) + "xxx";
-        return pilotNumberGroup + "/" + pilotNumber;
-    }
 }

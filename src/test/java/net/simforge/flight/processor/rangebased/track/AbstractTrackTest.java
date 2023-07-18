@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 @Ignore
+@Deprecated
 public abstract class AbstractTrackTest {
 
     protected static void assertFlightRoute(final Flight1 flight,

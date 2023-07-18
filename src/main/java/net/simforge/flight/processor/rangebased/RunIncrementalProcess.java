@@ -10,7 +10,7 @@ import net.simforge.networkview.core.report.persistence.ReportSessionManager;
 
 public class RunIncrementalProcess {
     public static void main(String[] args) throws InterruptedException {
-        String storagePath = "/home/alex853/simforge/range-based-gson-local-storage";
+        String storagePath = "./range-based-gson-local-storage";
         boolean singleRun = false;
 
         BM.init("RunIncrementalProcessor");

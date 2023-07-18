@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.simforge.commons.bm.BMC;
 import net.simforge.commons.io.IOHelper;
+import net.simforge.flight.core.storage.LocalGsonFileStorageRules;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportInfoDto;
 
@@ -46,12 +47,7 @@ public class ProcessorPOCStatusServiceLocalGson implements ProcessorPOCStatusSer
     }
 
     private File pilotContextFile(int pilotNumber) {
-        return new File(storageRoot, pilotFolderName(pilotNumber) + "/pilot-context.json");
-    }
-
-    private String pilotFolderName(int pilotNumber) {
-        String pilotNumberGroup = (pilotNumber / 1000) + "xxx";
-        return pilotNumberGroup + "/" + pilotNumber;
+        return new File(storageRoot, LocalGsonFileStorageRules.pilotFolderName(pilotNumber) + "/pilot-context.json");
     }
 
     @Override

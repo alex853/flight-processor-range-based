@@ -9,9 +9,8 @@ import net.simforge.networkview.core.report.persistence.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class IncrementalProcessor {
     private static final Logger logger = LoggerFactory.getLogger(IncrementalProcessor.class);
@@ -30,34 +29,50 @@ public class IncrementalProcessor {
         this.flightStorageService = flightStorageService;
     }
 
-    // todo ak to load active pilots that not presented in the report being processed
     public void process() {
         try (BMC ignored = BMC.start("IncrementalProcessor.process")) {
-            Report reportToProcess;
             ReportInfo lastProcessedReport = statusService.loadLastProcessedReport();
-            if (lastProcessedReport != null) {
-                reportToProcess = reportOpsService.loadNextReport(lastProcessedReport.getReport());
+            Report latestReport = reportOpsService.loadLastReport();
+
+            Report newLastProcessedReport = null;
+            Set<Integer> pilotNumbers = new TreeSet<>();
+            if (lastProcessedReport == null) {
+                if (!Boolean.TRUE.equals(latestReport.getParsed())) {
+                    return; // need to wait a bit
+                }
+                newLastProcessedReport = latestReport;
+                pilotNumbers.addAll(reportOpsService.loadPilotPositions(latestReport).stream()
+                        .map(ReportPilotPosition::getPilotNumber)
+                        .collect(Collectors.toSet()));
+                logger.info("Pilot Numbers - loaded for {} - INITIAL LOADING", ReportUtils.log(latestReport));
             } else {
-                reportToProcess = reportOpsService.loadLastReport();
+                String currReport = lastProcessedReport.getReport();
+                while (true) {
+                    Report nextReport = reportOpsService.loadNextReport(currReport);
+                    if (nextReport == null || !Boolean.TRUE.equals(nextReport.getParsed())) {
+                        break;
+                    }
+                    pilotNumbers.addAll(reportOpsService.loadPilotPositions(nextReport).stream()
+                            .map(ReportPilotPosition::getPilotNumber)
+                            .collect(Collectors.toSet()));
+                    newLastProcessedReport = nextReport;
+                    currReport = nextReport.getReport();
+                    logger.info("Pilot Numbers - loaded for {}", ReportUtils.log(newLastProcessedReport));
+                }
             }
 
-            if (reportToProcess == null) {
-                return;
-            } else if (!Boolean.TRUE.equals(reportToProcess.getParsed())) {
+            if (pilotNumbers.isEmpty()) {
+                logger.warn("Pilot Numbers list is empty! Something is wrong!");
                 return;
             }
-            logger.info("{} - Processing...", ReportUtils.log(reportToProcess));
 
             timeline = ReportTimeline.load(reportOpsService);
             // todo ak support for "gap report"
 
-            List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(reportToProcess);
-
             long lastPrintTs = System.currentTimeMillis();
             int counter = 0;
 
-            for (ReportPilotPosition position : positions) {
-                Integer pilotNumber = position.getPilotNumber();
+            for (int pilotNumber : pilotNumbers) {
                 try {
                     processPilot(pilotNumber);
                 } catch (Exception e) {
@@ -67,12 +82,12 @@ public class IncrementalProcessor {
                 counter++;
                 long now = System.currentTimeMillis();
                 if (now - lastPrintTs >= 10000) {
-                    logger.info("{} -     Positions : {} of {} done", ReportUtils.log(reportToProcess), counter, positions.size());
+                    logger.info(" -     Positions : {} of {} done", counter, pilotNumbers.size());
                     lastPrintTs = now;
                 }
             }
 
-            statusService.saveLastProcessedReport(reportToProcess);
+            statusService.saveLastProcessedReport(newLastProcessedReport);
         }
     }
 
@@ -115,12 +130,10 @@ public class IncrementalProcessor {
 
             if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 Flight1 firstFlight = oldFlights.get(0);
-                // todo ak first/last seen instead of takeoff/landing
-                // todo ak test with first/last seen
-                ReportRange firstFlightRange = ReportRange.between(firstFlight.getTakeoff().getReportInfo(), firstFlight.getLanding().getReportInfo());
+                ReportRange firstFlightRange = ReportRange.between(firstFlight.getFirstSeen().getReportInfo(), firstFlight.getLastSeen().getReportInfo());
 
-                if (firstFlightRange.isWithin(lastProcessedReport)) {
-                    processTrackSinceReport = firstFlight.getTakeoff().getReportInfo(); // todo ak first seen!!!
+                if (firstFlightRange.isWithin(lastProcessedReport)) { // todo ak3 rename it to hasReportWithinBoundaries
+                    processTrackSinceReport = firstFlight.getFirstSeen().getReportInfo();
                 }
             }
 
@@ -128,7 +141,7 @@ public class IncrementalProcessor {
             Track1 track = Track1.build(ReportRange.between(processTrackSinceReport, processTrackTillReport), timeline, positions);
 
             track.getFlights().forEach(flight1 -> {
-                ReportRange flight1Range = ReportRange.between(flight1.getTakeoff().getReportInfo(), flight1.getLanding().getReportInfo());
+                ReportRange flight1Range = ReportRange.between(flight1.getFirstSeen().getReportInfo(), flight1.getLastSeen().getReportInfo());
                 Collection<Flight1> overlappedFlights = Flight1Util.findOverlappedFlights(flight1Range, oldFlights);
                 // improvement - check if there is only single flight and it matches with new flight - do not need to remove, just update
                 overlappedFlights.forEach(flightStorageService::deleteFlight);

@@ -53,7 +53,7 @@ public class InMemoryFlightStorage implements FlightStorageService {
         }
 
         for (Flight1 anotherFlight : flights) {
-            if (anotherFlight.getTakeoff().getReportInfo().getReport().equals(flight.getTakeoff().getReportInfo().getReport())) {
+            if (anotherFlight.getFirstSeen().getReportInfo().getReport().equals(flight.getFirstSeen().getReportInfo().getReport())) {
                 return anotherFlight;
             }
         }
