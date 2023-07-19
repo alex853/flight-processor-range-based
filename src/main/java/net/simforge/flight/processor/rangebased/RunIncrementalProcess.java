@@ -30,7 +30,7 @@ public class RunIncrementalProcess {
         while (!singleRun) {
             processor.process();
             UnknownAircraftTypes.printStats();
-            Thread.sleep(100);
+            Thread.sleep(1000);
 
             BM.logPeriodically(true);
         }

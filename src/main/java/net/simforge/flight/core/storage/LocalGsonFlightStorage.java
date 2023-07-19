@@ -31,7 +31,13 @@ public class LocalGsonFlightStorage implements FlightStorageService {
     public Collection<Flight1> loadFlights(int pilotNumber, ReportInfo fromReport, ReportInfo toReport) {
         try (BMC ignored = BMC.start("LocalGsonFlightStorage.loadFlights")) {
             File flightsFolder = flightsFolder(pilotNumber);
-            File[] flightFiles = flightsFolder.listFiles((file, s) -> s.endsWith(".json") && s.length() >= 14 && ReportUtils.isTimestamp(s.substring(0, 14)));
+            String fromReportWidened = ReportUtils.toTimestamp(fromReport.getDt().minusHours(24));
+            String toReportWidened = ReportUtils.toTimestamp(toReport.getDt().plusHours(24));
+            File[] flightFiles = flightsFolder.listFiles((file, s) -> s.endsWith(".json")
+                    && s.length() >= 14
+                    && ReportUtils.isTimestamp(s.substring(0, 14))
+                    && ReportUtils.isTimestampGreater(s.substring(0, 14), fromReportWidened)
+                    && ReportUtils.isTimestampLess(s.substring(0, 14), toReportWidened));
             if (flightFiles == null) {
                 return new ArrayList<>();
             }

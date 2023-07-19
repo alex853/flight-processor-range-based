@@ -1,5 +1,6 @@
 package net.simforge.flight.processor.rangebased;
 
+import net.simforge.commons.bm.BMC;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.persistence.Report;
@@ -29,28 +30,32 @@ public class ReportTimeline {
     }
 
     public ReportInfo findPreviousReport(String report) {
-        // improvement - not optimal
-        Report previous = null;
-        for (Report current : reports) {
-            int result = current.getReport().compareTo(report);
-            if (result == 0) {
-                return current;
-            } else if (result > 0) {
-                return previous;
+        try (BMC ignored = BMC.start("ReportTimeline.findPreviousReport")) {
+            // improvement - not optimal
+            Report previous = null;
+            for (Report current : reports) {
+                int result = current.getReport().compareTo(report);
+                if (result == 0) {
+                    return current;
+                } else if (result > 0) {
+                    return previous;
+                }
+                previous = current;
             }
-            previous = current;
+            return null;
         }
-        return null;
     }
 
     public List<Report> getReportsInRange(ReportRange range) {
-        // improvement - not optimal
-        List<Report> result = new ArrayList<>();
-        for (Report report : reports) {
-            if (range.isWithin(report)) {
-                result.add(report);
+        try (BMC ignored = BMC.start("ReportTimeline.getReportsInRange")) {
+            // todo ak2 treeset? or array with binary search? improvement - not optimal
+            List<Report> result = new ArrayList<>();
+            for (Report report : reports) {
+                if (range.isWithin(report)) {
+                    result.add(report);
+                }
             }
+            return result;
         }
-        return result;
     }
 }

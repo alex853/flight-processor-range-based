@@ -52,13 +52,19 @@ public class IncrementalProcessor {
                     if (nextReport == null || !Boolean.TRUE.equals(nextReport.getParsed())) {
                         break;
                     }
-                    pilotNumbers.addAll(reportOpsService.loadPilotPositions(nextReport).stream()
+                    List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(nextReport);
+                    CachedPositions.consumeReportPositions(nextReport, positions);
+                    pilotNumbers.addAll(positions.stream()
                             .map(ReportPilotPosition::getPilotNumber)
                             .collect(Collectors.toSet()));
                     newLastProcessedReport = nextReport;
                     currReport = nextReport.getReport();
                     logger.info("Pilot Numbers - loaded for {}", ReportUtils.log(newLastProcessedReport));
                 }
+            }
+
+            if (newLastProcessedReport == null) {
+                return; // no report to process
             }
 
             if (pilotNumbers.isEmpty()) {
@@ -137,7 +143,12 @@ public class IncrementalProcessor {
                 }
             }
 
-            List<ReportPilotPosition> positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
+            List<ReportPilotPosition> positions = CachedPositions.findPilotPositions(pilotNumber, processTrackSinceReport, processTrackTillReport);
+            if (positions == null) { // todo ak1 some kind of statistics here
+                positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport); logger.warn("loading again");
+                CachedPositions.storePilotPositions(pilotNumber, positions, timeline, processTrackSinceReport, processTrackTillReport);
+            }
+
             Track1 track = Track1.build(ReportRange.between(processTrackSinceReport, processTrackTillReport), timeline, positions);
 
             track.getFlights().forEach(flight1 -> {
@@ -151,6 +162,7 @@ public class IncrementalProcessor {
 
             pilotContext.setLastIncrementallyProcessedReport(processTrackTillReport);
             statusService.savePilotContext(pilotContext);
+            CachedPositions.cleanupUselessPilotPositions(pilotNumber, processTrackTillReport);
         }
     }
 }
