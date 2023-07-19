@@ -6,6 +6,9 @@ import net.simforge.networkview.core.report.ReportInfo;
 import java.util.Collection;
 
 public interface FlightStorageService {
+
+    Collection<Flight1> loadAllFlights(int pilotNumber);
+
     Collection<Flight1> loadFlights(int pilotNumber, ReportInfo fromReport, ReportInfo toReport);
 
     void saveFlight(Flight1 flight);

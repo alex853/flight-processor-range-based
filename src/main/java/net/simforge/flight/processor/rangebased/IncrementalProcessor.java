@@ -186,18 +186,22 @@ public class IncrementalProcessor {
     // improvement - memory cache will complicate things however significantly improve the performance
     private void processPilot(Integer pilotNumber) {
         try (BMC ignored = BMC.start("IncrementalProcessor.processPilot")) {
-            LoadedPilotInfo loadedPilotInfo = loadedPilots.get(pilotNumber);
+            LoadedPilotInfo draftLoadedPilotInfo = loadedPilots.get(pilotNumber);
             PilotContext pilotContext;
-            if (loadedPilotInfo == null) {
+            if (draftLoadedPilotInfo == null) {
                 pilotContext = statusService.loadPilotContext(pilotNumber);
                 if (pilotContext == null) {
                     pilotContext = statusService.createPilotContext(pilotNumber);
                 }
-                loadedPilotInfo = LoadedPilotInfo.fromPilotContext(pilotContext);
-                loadedPilots.put(pilotNumber, loadedPilotInfo);
+
+                Collection<Flight1> unsortedFlights = flightStorageService.loadAllFlights(pilotNumber);
+
+                draftLoadedPilotInfo = LoadedPilotInfo.fromPilotContext(pilotContext, unsortedFlights);
+                loadedPilots.put(pilotNumber, draftLoadedPilotInfo);
             } else {
-                pilotContext = loadedPilotInfo.getPilotContext();
+                pilotContext = draftLoadedPilotInfo.getPilotContext();
             }
+            final LoadedPilotInfo loadedPilotInfo = draftLoadedPilotInfo;
 
             ReportInfo lastProcessedReport = pilotContext.getLastIncrementallyProcessedReport();
 
@@ -212,10 +216,6 @@ public class IncrementalProcessor {
             }
 
             ReportInfo processTrackTillReport = timeline.getLastReport();
-
-            Collection<Flight1> unsortedFlights = flightStorageService.loadFlights(pilotNumber, processTrackSinceReport, processTrackTillReport);
-            List<Flight1> oldFlights = new ArrayList<>(unsortedFlights);
-            oldFlights.sort(Flight1::compareByFirstSeen);
 
 /*            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 Flight1 firstFlight = oldFlights.get(0);
@@ -241,13 +241,17 @@ public class IncrementalProcessor {
 
             Track1 track = Track1.build(pilotNumber, foundPositions.get());
 
+            List<Flight1> oldFlights = loadedPilotInfo.getFlights();
             track.getFlights().forEach(flight1 -> {
                 ReportRange flight1Range = ReportRange.between(flight1.getFirstSeen().getReportInfo(), flight1.getLastSeen().getReportInfo());
                 Collection<Flight1> overlappedFlights = Flight1Util.findOverlappedFlights(flight1Range, oldFlights);
+
                 // improvement - check if there is only single flight and it matches with new flight - do not need to remove, just update
                 overlappedFlights.forEach(flightStorageService::deleteFlight);
+                overlappedFlights.forEach(loadedPilotInfo::deleteFlight);
 
                 flightStorageService.saveFlight(flight1);
+                loadedPilotInfo.addFlight(flight1);
             });
 
             pilotContext.setLastIncrementallyProcessedReport(processTrackTillReport);

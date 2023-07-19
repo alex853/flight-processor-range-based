@@ -16,6 +16,11 @@ public class InMemoryFlightStorage implements FlightStorageService {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
+    public Collection<Flight1> loadAllFlights(int pilotNumber) {
+        throw new UnsupportedOperationException("InMemoryFlightStorage.loadAllFlights");
+    }
+
+    @Override
     public Collection<Flight1> loadFlights(int pilotNumber, ReportInfo fromReport, ReportInfo toReport) {
         List<Flight1> flights = this.flights.get(pilotNumber);
         if (flights == null) {
