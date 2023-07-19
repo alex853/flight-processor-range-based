@@ -47,11 +47,19 @@ public class IncrementalProcessor {
                 logger.info("Pilot Numbers - loaded for {} - INITIAL LOADING", ReportUtils.log(latestReport));
             } else {
                 String currReport = lastProcessedReport.getReport();
+                int reportCounter = 0;
                 while (true) {
                     Report nextReport = reportOpsService.loadNextReport(currReport);
                     if (nextReport == null || !Boolean.TRUE.equals(nextReport.getParsed())) {
                         break;
                     }
+
+                    if (reportCounter >= 30) {
+                        logger.warn("Pilot Numbers - There are too many non-processed reports, current batch will be processed then it continue remaining reports");
+                        break;
+                    }
+                    reportCounter++;
+
                     List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(nextReport);
                     CachedPositions.consumeReportPositions(nextReport, positions);
                     pilotNumbers.addAll(positions.stream()
@@ -93,6 +101,7 @@ public class IncrementalProcessor {
                 }
             }
 
+            logger.info(" -     ALL {} DONE", pilotNumbers.size());
             statusService.saveLastProcessedReport(newLastProcessedReport);
         }
     }

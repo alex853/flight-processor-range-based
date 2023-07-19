@@ -96,6 +96,9 @@ public abstract class AbstractTrackTest {
 
         ReportTimeline timeline = ReportTimeline.load(reportOpsService);
         ReportInfo processTrackSinceReport = timeline.findPreviousReport(fromReport);
+        if (processTrackSinceReport == null) {
+            processTrackSinceReport = timeline.getFirstReport();
+        }
         ReportInfo processTrackTillReport = timeline.findPreviousReport(toReport);
 
         List<ReportPilotPosition> positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);

@@ -7,13 +7,22 @@ import net.simforge.networkview.core.report.persistence.Report;
 import net.simforge.networkview.core.report.persistence.ReportOpsService;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 public class ReportTimeline {
-    private final List<Report> reports;
+
+    private static final Comparator binarySearchComparator = (o1, o2) -> {
+        String r1 = o1 instanceof Report ? ((Report) o1).getReport() : (String) o1;
+        String r2 = o2 instanceof Report ? ((Report) o2).getReport() : (String) o2;
+        return String.CASE_INSENSITIVE_ORDER.compare(r1, r2);
+    };
+
+    private final Report[] reports;
 
     private ReportTimeline(List<Report> reports) {
-        this.reports = new ArrayList<>(reports);
+        this.reports = reports.toArray(new Report[0]);
     }
 
     public static ReportTimeline load(ReportOpsService reportOpsService) {
@@ -22,38 +31,67 @@ public class ReportTimeline {
     }
 
     public ReportInfo getFirstReport() {
-        return reports.get(0);
+        if (reports.length == 0) {
+            return null;
+        }
+        return reports[0];
     }
 
     public ReportInfo getLastReport() {
-        return reports.get(reports.size() - 1);
+        if (reports.length == 0) {
+            return null;
+        }
+        return reports[reports.length - 1];
     }
 
     public ReportInfo findPreviousReport(String report) {
         try (BMC ignored = BMC.start("ReportTimeline.findPreviousReport")) {
-            // improvement - not optimal
-            Report previous = null;
-            for (Report current : reports) {
-                int result = current.getReport().compareTo(report);
-                if (result == 0) {
-                    return current;
-                } else if (result > 0) {
-                    return previous;
+            //noinspection unchecked
+            int index = Arrays.binarySearch(reports, report, binarySearchComparator);
+
+            if (index >= 0) {
+                // we found exact match, and we need to return __previous__ report
+                if (index > 0) {
+                    return reports[index - 1];
+                } else {
+                    return null;
                 }
-                previous = current;
+            } else {
+                index = -(index + 1);
+                if (index == 0) {
+                    return null;
+                } if (index == reports.length) {
+                    return reports[reports.length - 1];
+                } else {
+                    return reports[index - 1];
+                }
             }
-            return null;
         }
     }
 
     public List<Report> getReportsInRange(ReportRange range) {
         try (BMC ignored = BMC.start("ReportTimeline.getReportsInRange")) {
-            // todo ak2 treeset? or array with binary search? improvement - not optimal
-            List<Report> result = new ArrayList<>();
-            for (Report report : reports) {
-                if (range.isWithin(report)) {
-                    result.add(report);
-                }
+            //noinspection unchecked
+            int left = Arrays.binarySearch(reports, range.getSince().getReport(), binarySearchComparator);
+            //noinspection unchecked
+            int right = Arrays.binarySearch(reports, range.getTill().getReport(), binarySearchComparator);
+
+            if (left >= 0) {
+                // noop
+            } else {
+                left = -(left + 1);
+            }
+
+            if (right >= 0) {
+                // noop
+            } else {
+                right = -(right + 1);
+                right = right - 1; // we offset this pointer by one to left
+            }
+
+            List<Report> result = new ArrayList<>(right - left + 1);
+            for (int i = left; i <= right; i++) {
+                result.add(reports[i]);
             }
             return result;
         }
