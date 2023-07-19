@@ -33,8 +33,8 @@ public class UnknownAircraftTypes {
         sortedEntries.sort(Comparator.comparingInt(Map.Entry::getValue));
         for (int i = sortedEntries.size() - 1; i >= 0; i--) {
             Map.Entry<String, Integer> entry = sortedEntries.get(i);
-            logger.info("\t\t{} - {} times", entry.getKey(), entry.getValue());
+            logger.info("                         * {} - {} times", entry.getKey(), entry.getValue());
         }
-        logger.info("\t\tTotal {} aircraft types", sortedEntries.size());
+        logger.info("                        Total {} aircraft types", sortedEntries.size());
     }
 }

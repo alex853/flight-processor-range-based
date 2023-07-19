@@ -1,5 +1,6 @@
-package net.simforge.flight.processor.rangebased;
+package net.simforge.flight.core.deprecated;
 
+import net.simforge.flight.processor.rangebased.ReportTimeline;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.ReportUtils;

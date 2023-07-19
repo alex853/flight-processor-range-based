@@ -30,24 +30,12 @@ public class Track1 {
 
     private Track1() {}
 
-    public static Track1 build(ReportRange currentRange, ReportTimeline timeline, List<ReportPilotPosition> reportPilotPositions) {
+    public static Track1 build(int pilotNumber, List<Position> positions) {
         try (BMC ignored = BMC.start("Track1.build")) {
             Track1 track = new Track1();
 
-            Map<String, ReportPilotPosition> reportPilotPositionByReport = reportPilotPositions.stream().collect(Collectors.toMap(p -> p.getReport().getReport(), Function.identity()));
-
-            List<Report> reports = timeline.getReportsInRange(currentRange);
-            for (Report report : reports) {
-                try (BMC ignored1 = BMC.start("Track1.build/reportPilotPositions")) {
-                    ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
-                    Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
-                    track.trackData.add(position);
-
-                    if (track.pilotNumber == 0 && reportPilotPosition != null) {
-                        track.pilotNumber = reportPilotPosition.getPilotNumber();
-                    }
-                }
-            }
+            track.pilotNumber = pilotNumber;
+            track.trackData.addAll(positions);
 
             track.buildRanges();
 //            track.printRanges("Stage 0 - ranges prepared");

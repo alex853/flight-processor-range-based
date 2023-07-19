@@ -1,8 +1,10 @@
 package net.simforge.flight.processor.rangebased;
 
+import com.google.common.collect.Lists;
 import net.simforge.commons.bm.BMC;
 import net.simforge.flight.core.storage.FlightStorageService;
 import net.simforge.flight.core.storage.StatusService;
+import net.simforge.networkview.core.Position;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.ReportUtils;
@@ -21,6 +23,8 @@ public class IncrementalProcessor {
     private final StatusService statusService;
     private final FlightStorageService flightStorageService;
 
+    private final Map<Integer, Track1Data> tracksMap = new TreeMap<>();
+
     private ReportTimeline timeline;
 
     public IncrementalProcessor(ReportSessionManager sessionManager, ReportOpsService reportOpsService, StatusService statusService, FlightStorageService flightStorageService) {
@@ -32,6 +36,9 @@ public class IncrementalProcessor {
 
     public void process() {
         try (BMC ignored = BMC.start("IncrementalProcessor.process")) {
+            timeline = ReportTimeline.load(reportOpsService);
+            // todo ak3 support for "gap report"
+
             ReportInfo lastProcessedReport = statusService.loadLastProcessedReport();
             Report latestReport = reportOpsService.loadLastReport();
 
@@ -55,6 +62,11 @@ public class IncrementalProcessor {
                         break;
                     }
 
+                    if (NewMethods.isEarlierThan(timeline.getLastReport(), nextReport.getReport())) {
+                        logger.warn("TIMELINE IS LAGGING, Last Report {}, Next Report {}", timeline.getLastReport().getReport(), nextReport.getReport());
+                        break;
+                    }
+
                     if (reportCounter >= 30) {
                         logger.warn("Pilot Numbers - There are too many non-processed reports, current batch will be processed then it continue remaining reports");
                         break;
@@ -62,10 +74,44 @@ public class IncrementalProcessor {
                     reportCounter++;
 
                     List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(nextReport);
-                    CachedPositions.consumeReportPositions(nextReport, positions);
-                    pilotNumbers.addAll(positions.stream()
-                            .map(ReportPilotPosition::getPilotNumber)
-                            .collect(Collectors.toSet()));
+
+                    Set<Integer> pilotsNotSeenInThisReport = new TreeSet<>(tracksMap.keySet());
+                    Set<Integer> addedPilots = new TreeSet<>();
+                    positions.forEach(p -> {
+                        int pilotNumber = p.getPilotNumber();
+                        pilotNumbers.add(pilotNumber);
+
+                        Track1Data trackData = tracksMap.get(pilotNumber);
+                        if (trackData == null) {
+                            addedPilots.add(pilotNumber);
+                            return;
+                        }
+
+                        pilotsNotSeenInThisReport.remove(pilotNumber);
+                        boolean success = trackData.storePositions(timeline, NewMethods.rangeOf(nextReport), Lists.newArrayList(p));
+                        if (!success) {
+                            logger.warn("            Pilot {} - Track Data - UNABLE TO STORE SINGLE POSITION, SOMETHING IS WRONG", pilotNumber);
+                        }
+                    });
+
+                    for (int pilotNumber : pilotsNotSeenInThisReport) {
+                        Track1Data trackData = tracksMap.get(pilotNumber);
+                        boolean success = trackData.storePositions(timeline, NewMethods.rangeOf(nextReport), Lists.newArrayList());
+                        if (!success) {
+                            logger.warn("            Pilot {} - Track Data - UNABLE TO STORE SINGLE OFFLINE POSITION, SOMETHING IS WRONG", pilotNumber);
+                        }
+                    }
+
+                    pilotNumbers.addAll(pilotsNotSeenInThisReport);
+
+                    if (!addedPilots.isEmpty()) {
+                        logger.info("            Track Data - {} - Appeared pilots: {}", nextReport.getReport(), addedPilots);
+                    }
+
+                    if (!pilotsNotSeenInThisReport.isEmpty()) {
+                        logger.info("            Track Data - {} - Disappeared pilots: {}", nextReport.getReport(), addedPilots);
+                    }
+
                     newLastProcessedReport = nextReport;
                     currReport = nextReport.getReport();
                     logger.info("Pilot Numbers - loaded for {}", ReportUtils.log(newLastProcessedReport));
@@ -80,9 +126,6 @@ public class IncrementalProcessor {
                 logger.warn("Pilot Numbers list is empty! Something is wrong!");
                 return;
             }
-
-            timeline = ReportTimeline.load(reportOpsService);
-            // todo ak support for "gap report"
 
             long lastPrintTs = System.currentTimeMillis();
             int counter = 0;
@@ -104,6 +147,25 @@ public class IncrementalProcessor {
 
             logger.info(" -     Positions : ALL {} DONE", pilotNumbers.size());
             statusService.saveLastProcessedReport(newLastProcessedReport);
+
+            Set<Integer> pilotsToRemove = new TreeSet<>();
+            final ReportInfo reportToDetermineRemoval = newLastProcessedReport;
+            tracksMap.values().forEach(trackData -> {
+                if (!trackData.hasOnlinePositionsLaterThan(NewMethods.minusHours(reportToDetermineRemoval, 6))) {
+                    pilotsToRemove.add(trackData.getPilotNumber());
+                }
+            });
+            if (!pilotsToRemove.isEmpty()) {
+                logger.warn("            Track Data - The following pilots will be removed due to offline status: {}", pilotsToRemove);
+                pilotsToRemove.forEach(tracksMap::remove);
+            }
+
+            int tracksCount = tracksMap.size();
+            int positionsCount = tracksMap.values().stream().mapToInt(Track1Data::size).sum();
+
+            logger.info("Track Data - Stats: tracks {}, positions {}, positions per track {}", tracksCount, positionsCount, positionsCount / Math.max(tracksCount, 1));
+
+            printMemoryReport();
         }
     }
 
@@ -130,7 +192,7 @@ public class IncrementalProcessor {
 
             ReportInfo processTrackSinceReport = timeline.getFirstReport();
             if (lastProcessedReport != null) {
-                String calculatedDateTime = ReportUtils.toTimestamp(lastProcessedReport.getDt().minusHours(48));
+                String calculatedDateTime = NewMethods.minusHours(lastProcessedReport, 24);
                 processTrackSinceReport = timeline.findPreviousReport(calculatedDateTime);
 
                 if (processTrackSinceReport == null) {
@@ -144,22 +206,29 @@ public class IncrementalProcessor {
             List<Flight1> oldFlights = new ArrayList<>(unsortedFlights);
             oldFlights.sort(Flight1::compareByFirstSeen);
 
-            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
+/*            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 Flight1 firstFlight = oldFlights.get(0);
                 ReportRange firstFlightRange = ReportRange.between(firstFlight.getFirstSeen().getReportInfo(), firstFlight.getLastSeen().getReportInfo());
 
                 if (firstFlightRange.isWithin(lastProcessedReport)) { // todo ak3 rename it to hasReportWithinBoundaries
                     processTrackSinceReport = firstFlight.getFirstSeen().getReportInfo();
                 }
+            }*/
+
+            ReportRange currentRange = ReportRange.between(processTrackSinceReport, processTrackTillReport);
+            Track1Data trackData = tracksMap.computeIfAbsent(pilotNumber, (pn) -> Track1Data.forPilot(pilotNumber));
+            Optional<List<Position>> foundPositions = trackData.getPositions(currentRange);
+            if (!foundPositions.isPresent()) {
+                logger.info("            Pilot {} - Track Data - Loading Positions since {} till {}", pilotNumber, processTrackSinceReport.getReport(), processTrackTillReport.getReport());
+                List<ReportPilotPosition> reportPilotPositions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
+                boolean success = trackData.storePositions(timeline, currentRange, reportPilotPositions);
+                if (!success) {
+                    logger.warn("            Pilot {} - Track Data - UNABLE TO STORE POSITIONS, SOMETHING IS WRONG", pilotNumber);
+                }
+                foundPositions = trackData.getPositions(currentRange);
             }
 
-            List<ReportPilotPosition> positions = CachedPositions.findPilotPositions(pilotNumber, processTrackSinceReport, processTrackTillReport);
-            if (positions == null) { // todo ak1 some kind of statistics here
-                positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport); logger.warn("loading again");
-                CachedPositions.storePilotPositions(pilotNumber, positions, timeline, processTrackSinceReport, processTrackTillReport);
-            }
-
-            Track1 track = Track1.build(ReportRange.between(processTrackSinceReport, processTrackTillReport), timeline, positions);
+            Track1 track = Track1.build(pilotNumber, foundPositions.get());
 
             track.getFlights().forEach(flight1 -> {
                 ReportRange flight1Range = ReportRange.between(flight1.getFirstSeen().getReportInfo(), flight1.getLastSeen().getReportInfo());
@@ -172,7 +241,27 @@ public class IncrementalProcessor {
 
             pilotContext.setLastIncrementallyProcessedReport(processTrackTillReport);
             statusService.savePilotContext(pilotContext);
-            CachedPositions.cleanupUselessPilotPositions(pilotNumber, processTrackTillReport);
+            trackData.removePositionsOlderThanTimestamp(NewMethods.minusHours(processTrackTillReport, 30));
         }
     }
+
+    private static long lastMemoryReportTs;
+
+    private static void printMemoryReport() {
+        if (lastMemoryReportTs + 10 * 60 * 1000 < System.currentTimeMillis()) {
+            Runtime runtime = Runtime.getRuntime();
+            long mm = runtime.maxMemory();
+            long fm = runtime.freeMemory();
+            long tm = runtime.totalMemory();
+            String str = "Memory report: Used = " + toMB(tm - fm) + ", " + "Free = " + toMB(fm) + ", " + "Total = " + toMB(tm) + ", " + "Max = " + toMB(mm);
+            logger.info(str);
+
+            lastMemoryReportTs = System.currentTimeMillis();
+        }
+    }
+
+    private static String toMB(long size) {
+        return Long.toString(size / 0x100000L);
+    }
+
 }
