@@ -23,7 +23,7 @@ public class IncrementalProcessor {
     private final StatusService statusService;
     private final FlightStorageService flightStorageService;
 
-    private final Map<Integer, Track1Data> tracksMap = new TreeMap<>();
+    private final Map<Integer, LoadedPilotInfo> loadedPilots = new TreeMap<>();
 
     private ReportTimeline timeline;
 
@@ -75,17 +75,18 @@ public class IncrementalProcessor {
 
                     List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(nextReport);
 
-                    Set<Integer> pilotsNotSeenInThisReport = new TreeSet<>(tracksMap.keySet());
+                    Set<Integer> pilotsNotSeenInThisReport = new TreeSet<>(loadedPilots.keySet());
                     Set<Integer> addedPilots = new TreeSet<>();
                     positions.forEach(p -> {
                         int pilotNumber = p.getPilotNumber();
                         pilotNumbers.add(pilotNumber);
 
-                        Track1Data trackData = tracksMap.get(pilotNumber);
-                        if (trackData == null) {
+                        LoadedPilotInfo loadedPilotInfo = loadedPilots.get(pilotNumber);
+                        if (loadedPilotInfo == null) {
                             addedPilots.add(pilotNumber);
                             return;
                         }
+                        Track1Data trackData = loadedPilotInfo.getTrackData();
 
                         pilotsNotSeenInThisReport.remove(pilotNumber);
                         boolean success = trackData.storePositions(timeline, NewMethods.rangeOf(nextReport), Lists.newArrayList(p));
@@ -95,7 +96,8 @@ public class IncrementalProcessor {
                     });
 
                     for (int pilotNumber : pilotsNotSeenInThisReport) {
-                        Track1Data trackData = tracksMap.get(pilotNumber);
+                        LoadedPilotInfo loadedPilotInfo = loadedPilots.get(pilotNumber);
+                        Track1Data trackData = loadedPilotInfo.getTrackData();
                         boolean success = trackData.storePositions(timeline, NewMethods.rangeOf(nextReport), Lists.newArrayList());
                         if (!success) {
                             logger.warn("            Pilot {} - Track Data - UNABLE TO STORE SINGLE OFFLINE POSITION, SOMETHING IS WRONG", pilotNumber);
@@ -150,18 +152,19 @@ public class IncrementalProcessor {
 
             Set<Integer> pilotsToRemove = new TreeSet<>();
             final ReportInfo reportToDetermineRemoval = newLastProcessedReport;
-            tracksMap.values().forEach(trackData -> {
+            loadedPilots.values().forEach(loadedPilotInfo -> {
+                Track1Data trackData = loadedPilotInfo.getTrackData();
                 if (!trackData.hasOnlinePositionsLaterThan(NewMethods.minusHours(reportToDetermineRemoval, 6))) {
                     pilotsToRemove.add(trackData.getPilotNumber());
                 }
             });
             if (!pilotsToRemove.isEmpty()) {
                 logger.warn("            Track Data - The following pilots will be removed due to offline status: {}", pilotsToRemove);
-                pilotsToRemove.forEach(tracksMap::remove);
+                pilotsToRemove.forEach(loadedPilots::remove);
             }
 
-            int tracksCount = tracksMap.size();
-            int positionsCount = tracksMap.values().stream().mapToInt(Track1Data::size).sum();
+            int tracksCount = loadedPilots.size();
+            int positionsCount = loadedPilots.values().stream().mapToInt(loadedPilotInfo -> loadedPilotInfo.getTrackData().size()).sum();
 
             logger.info("Track Data - Stats: tracks {}, positions {}, positions per track {}", tracksCount, positionsCount, positionsCount / Math.max(tracksCount, 1));
 
@@ -183,9 +186,17 @@ public class IncrementalProcessor {
     // improvement - memory cache will complicate things however significantly improve the performance
     private void processPilot(Integer pilotNumber) {
         try (BMC ignored = BMC.start("IncrementalProcessor.processPilot")) {
-            PilotContext pilotContext = statusService.loadPilotContext(pilotNumber);
-            if (pilotContext == null) {
-                pilotContext = statusService.createPilotContext(pilotNumber);
+            LoadedPilotInfo loadedPilotInfo = loadedPilots.get(pilotNumber);
+            PilotContext pilotContext;
+            if (loadedPilotInfo == null) {
+                pilotContext = statusService.loadPilotContext(pilotNumber);
+                if (pilotContext == null) {
+                    pilotContext = statusService.createPilotContext(pilotNumber);
+                }
+                loadedPilotInfo = LoadedPilotInfo.fromPilotContext(pilotContext);
+                loadedPilots.put(pilotNumber, loadedPilotInfo);
+            } else {
+                pilotContext = loadedPilotInfo.getPilotContext();
             }
 
             ReportInfo lastProcessedReport = pilotContext.getLastIncrementallyProcessedReport();
@@ -216,7 +227,7 @@ public class IncrementalProcessor {
             }*/
 
             ReportRange currentRange = ReportRange.between(processTrackSinceReport, processTrackTillReport);
-            Track1Data trackData = tracksMap.computeIfAbsent(pilotNumber, (pn) -> Track1Data.forPilot(pilotNumber));
+            Track1Data trackData = loadedPilotInfo.getTrackData();
             Optional<List<Position>> foundPositions = trackData.getPositions(currentRange);
             if (!foundPositions.isPresent()) {
                 logger.info("            Pilot {} - Track Data - Loading Positions since {} till {}", pilotNumber, processTrackSinceReport.getReport(), processTrackTillReport.getReport());
