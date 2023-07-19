@@ -1,11 +1,13 @@
-package net.simforge.flight.processor.rangebased;
+package net.simforge.flight.core.storage.impl;
 
+import net.simforge.flight.core.storage.StatusService;
+import net.simforge.flight.processor.rangebased.PilotContext;
 import net.simforge.networkview.core.report.ReportInfo;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class ProcessorPOCStatusServiceInMemory implements ProcessorPOCStatusService {
+public class InMemoryStatusService implements StatusService {
     private ReportInfo lastProcessedReport;
     private final Map<Integer, PilotContext> pilotContexts = new HashMap<>();
 

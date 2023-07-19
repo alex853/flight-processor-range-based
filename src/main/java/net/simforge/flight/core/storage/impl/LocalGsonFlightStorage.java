@@ -1,9 +1,10 @@
-package net.simforge.flight.core.storage;
+package net.simforge.flight.core.storage.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.simforge.commons.bm.BMC;
 import net.simforge.commons.io.IOHelper;
+import net.simforge.flight.core.storage.FlightStorageService;
 import net.simforge.flight.processor.rangebased.Flight1;
 import net.simforge.flight.processor.rangebased.Flight1Util;
 import net.simforge.networkview.core.report.ReportInfo;

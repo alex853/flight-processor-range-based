@@ -7,7 +7,7 @@ import net.simforge.networkview.core.report.ReportRange;
 import java.util.ArrayList;
 import java.util.List;
 
-class PilotContext {
+public class PilotContext {
     private int pilotNumber;
     private List<ReportRange> processedRanges = new ArrayList<>();
     private ReportInfoDto lastIncrementallyProcessedReport;

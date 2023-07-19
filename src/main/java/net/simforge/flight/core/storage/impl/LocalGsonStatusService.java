@@ -1,21 +1,22 @@
-package net.simforge.flight.processor.rangebased;
+package net.simforge.flight.core.storage.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.simforge.commons.bm.BMC;
 import net.simforge.commons.io.IOHelper;
-import net.simforge.flight.core.storage.LocalGsonFileStorageRules;
+import net.simforge.flight.core.storage.StatusService;
+import net.simforge.flight.processor.rangebased.PilotContext;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportInfoDto;
 
 import java.io.File;
 import java.io.IOException;
 
-public class ProcessorPOCStatusServiceLocalGson implements ProcessorPOCStatusService {
+public class LocalGsonStatusService implements StatusService {
     private final File storageRoot;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    public ProcessorPOCStatusServiceLocalGson(String storagePath) {
+    public LocalGsonStatusService(String storagePath) {
         this.storageRoot = new File(storagePath);
     }
 

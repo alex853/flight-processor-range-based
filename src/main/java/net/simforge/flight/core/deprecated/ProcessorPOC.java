@@ -1,7 +1,10 @@
-package net.simforge.flight.processor.rangebased;
+package net.simforge.flight.core.deprecated;
 
 import net.simforge.flight.core.storage.FlightStorageService;
-import net.simforge.flight.core.storage.LocalGsonFlightStorage;
+import net.simforge.flight.core.storage.StatusService;
+import net.simforge.flight.core.storage.impl.LocalGsonFlightStorage;
+import net.simforge.flight.core.storage.impl.InMemoryStatusService;
+import net.simforge.flight.processor.rangebased.*;
 import net.simforge.networkview.core.Network;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportInfoDto;
@@ -22,7 +25,7 @@ public class ProcessorPOC {
 
         ReportSessionManager sessionManager = new ReportSessionManager();
         processor.setReportOpsService(new BaseReportOpsService(sessionManager, Network.VATSIM));
-        processor.setStatusService(new ProcessorPOCStatusServiceInMemory());
+        processor.setStatusService(new InMemoryStatusService());
         processor.setFlightStorageService(new LocalGsonFlightStorage("/home/alex853/simforge/range-based-gson-local-storage"));
 
         while (true) {
@@ -32,7 +35,7 @@ public class ProcessorPOC {
     }
 
     private ReportOpsService reportOpsService;
-    private ProcessorPOCStatusService statusService;
+    private StatusService statusService;
     private FlightStorageService flightStorageService;
 
     private Map<Integer, PilotContext> pilotContexts = new HashMap<>();
@@ -47,11 +50,11 @@ public class ProcessorPOC {
         this.reportOpsService = reportOpsService;
     }
 
-    public ProcessorPOCStatusService getStatusService() {
+    public StatusService getStatusService() {
         return statusService;
     }
 
-    public void setStatusService(ProcessorPOCStatusService statusService) {
+    public void setStatusService(StatusService statusService) {
         this.statusService = statusService;
     }
 

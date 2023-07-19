@@ -2,7 +2,10 @@ package net.simforge.flight.processor.rangebased;
 
 import net.simforge.commons.io.Csv;
 import net.simforge.commons.io.IOHelper;
-import net.simforge.flight.core.storage.InMemoryFlightStorage;
+import net.simforge.flight.core.deprecated.ProcessorPOC;
+import net.simforge.flight.core.storage.StatusService;
+import net.simforge.flight.core.storage.impl.InMemoryFlightStorage;
+import net.simforge.flight.core.storage.impl.InMemoryStatusService;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.persistence.Report;
 import net.simforge.networkview.core.report.snapshot.CsvSnapshotReportOpsService;
@@ -35,7 +38,7 @@ public abstract class AbstractTest {
 
         InMemoryFlightStorage flightStorageService = new InMemoryFlightStorage();
 
-        ProcessorPOCStatusService statusService = new ProcessorPOCStatusServiceInMemory();
+        StatusService statusService = new InMemoryStatusService();
         if (savedProcessedReport != null) {
             statusService.saveLastProcessedReport(savedProcessedReport);
         }

@@ -1,7 +1,8 @@
-package net.simforge.flight.processor.rangebased.poc;
+package net.simforge.flight.core.deprecated.poc;
 
 import net.simforge.commons.misc.Geo;
 import net.simforge.commons.misc.JavaTime;
+import net.simforge.flight.core.EllipseCriterion;
 import net.simforge.flight.core.Flightplan;
 import net.simforge.networkview.core.Network;
 import net.simforge.networkview.core.report.ReportUtils;
@@ -15,7 +16,12 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class Test {
+public class Test2 {
+
+    private static int totalTakeoffs = 0;
+    private static int totalLandings = 0;
+    private static int totalFlights = 0;
+
     public static void main(String[] args) throws IOException {
         // load pilot track for some range
         // determine online/offline/takeoff/landing/touch&go events
@@ -35,97 +41,56 @@ public class Test {
 
         // flight is sequence of sections - taxi out section, flying section, taxi in section and set of events
 
-//        int pilotNumber = 1138460;
-//        int pilotNumber = 1001634;
-//        int pilotNumber = 913904;
-//        int pilotNumber = 1283157;
-        int pilotNumber = 898859;
-
         ReportSessionManager reportSessionManager = new ReportSessionManager();
-        ReportOpsService service = new BaseReportOpsService(reportSessionManager, Network.VATSIM);
-//        ReportOpsService service = new BaseReportOpsService(reportSessionManager, Network.VATSIM, 2020);
-//        ReportOpsService service = new ReportOpsServiceCsvDatasourceWrapper("./src/test/resources/snapshots/pilot-913904_2018-11-23.csv");
-//        ReportOpsService service = new ReportOpsServiceCsvDatasourceWrapper("./src/test/resources/snapshots/pilot-1283157_from-2015182747_amount-250.csv");
+
+        List<Integer> pilotNumbers;
+//        try (Session session = reportSessionManager.getSession(Network.VATSIM)) {
+//            pilotNumbers = session
+//                    .createQuery("select distinct(pilotNumber) from ReportPilotPosition")
+//                    .list();
+//        }
+        pilotNumbers = Collections.singletonList(1340422);
+
+//        ReportOpsService service = new BaseReportOpsService(reportSessionManager, Network.VATSIM);
+        ReportOpsService service = new BaseReportOpsService(reportSessionManager, Network.VATSIM, 2020);
         List<Report> reports = service.loadAllReports();
-        List<ReportPilotPosition> reportPilotPositions = service.loadPilotPositions(pilotNumber);
-        Map<String, ReportPilotPosition> reportPilotPositionByReport = reportPilotPositions.stream().collect(Collectors.toMap(p -> p.getReport().getReport(), Function.identity()));
-        reportSessionManager.dispose();
 
-        Track track = new Track();
+        long lastPrintTs = System.currentTimeMillis();
+        int counter = 0;
+        for (Integer pilotNumber : pilotNumbers) {
+            List<ReportPilotPosition> reportPilotPositions = service.loadPilotPositions(pilotNumber);
+            Map<String, ReportPilotPosition> reportPilotPositionByReport = reportPilotPositions.stream().collect(Collectors.toMap(p -> p.getReport().getReport(), Function.identity()));
 
-        for (Report report : reports) {
-            ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
-            Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
-            track.add(position);
+            Track track = new Track();
+
+            for (Report report : reports) {
+                ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
+                Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
+                track.add(position);
+            }
+
+            track.buildRanges();
+            track.printRanges();
+            track.buildFlights();
+            track.printFlights();
+            track.printStats();
+
+            counter++;
+            long now = System.currentTimeMillis();
+            if (now - lastPrintTs > 10000) {
+                System.out.println(String.format("\t\t%d of %d done", counter, pilotNumbers.size()));
+                lastPrintTs = now;
+            }
         }
 
-//        track.recognizeTakeoffsLandings();
-//        track.recognizeTouchAndGoes();
-
-//        track.printEvents();
-
-        track.buildRanges();
-
-        track.buildIdealFlights();
-
-        track.printStats();
+        reportSessionManager.dispose();
     }
 
     private static class Track {
         private List<Position> trackData = new ArrayList<>();
-        private Map<String, Set<EventType>> eventsByTime = new TreeMap<>();
 
         public void add(Position position) {
             trackData.add(position);
-        }
-
-        public void recognizeTakeoffsLandings() {
-            for (int i = 1; i < trackData.size(); i++) {
-                Position prevPosition = trackData.get(i - 1);
-                Position position = trackData.get(i);
-
-//            boolean wentOnline = !prevPosition.isPositionKnown() && position.isPositionKnown();
-//            boolean wentOffline = prevPosition.isPositionKnown() && !position.isPositionKnown();
-                boolean bothPositionsKnown = prevPosition.isPositionKnown() && position.isPositionKnown();
-
-                boolean takeoff = bothPositionsKnown && prevPosition.isOnGround() && !position.isOnGround();
-                boolean landing = bothPositionsKnown && !prevPosition.isOnGround() && position.isOnGround();
-
-                if (takeoff) {
-                    Set<EventType> events = this.eventsByTime.computeIfAbsent(
-                            prevPosition.getReportInfo().getReport(),
-                            set -> new TreeSet<>());
-                    events.add(EventType.Takeoff);
-                }
-
-                if (landing) {
-                    Set<EventType> eventList = this.eventsByTime.computeIfAbsent(
-                            position.getReportInfo().getReport(),
-                            set -> new TreeSet<>());
-                    eventList.add(EventType.Landing);
-                }
-            }
-        }
-
-        public void recognizeTouchAndGoes() {
-            for (Map.Entry<String, Set<EventType>> entry : eventsByTime.entrySet()) {
-                Set<EventType> events = entry.getValue();
-                if (events.contains(EventType.Takeoff) && events.contains(EventType.Landing)) {
-                    events.remove(EventType.Takeoff);
-                    events.remove(EventType.Landing);
-                    events.add(EventType.TouchAndGo);
-                }
-            }
-        }
-
-        public void printEvents() {
-            for (Map.Entry<String, Set<EventType>> entry : eventsByTime.entrySet()) {
-                Position position = trackDataByReport(entry.getKey());
-                System.out.println(ReportUtils.log(entry.getKey())
-                        + " -> " + entry.getValue()
-                        + " | " + position.getStatus()
-                        + " " + Flightplan.fromPosition(position));
-            }
         }
 
         private Position trackDataByReport(String report) {
@@ -172,11 +137,11 @@ public class Test {
 
             endOfTrack = range.endOfTrack();
 
-            System.out.println();
-            System.out.println("online/offline section completed");
-            System.out.println();
+//            System.out.println();
+//            System.out.println("online/offline section completed");
+//            System.out.println();
 
-            printRanges(startOfTrack, endOfTrack);
+//            printRanges(startOfTrack, endOfTrack);
 
             Event1 event = startOfTrack;
             while (event != endOfTrack) {
@@ -191,11 +156,11 @@ public class Test {
                 event = range.getNextEvent();
             }
 
-            System.out.println();
-            System.out.println("takeoff/landing section completed");
-            System.out.println();
+//            System.out.println();
+//            System.out.println("takeoff/landing section completed");
+//            System.out.println();
 
-            printRanges(startOfTrack, endOfTrack);
+//            printRanges(startOfTrack, endOfTrack);
 
             event = startOfTrack;
             while (event != endOfTrack) {
@@ -216,11 +181,11 @@ public class Test {
                 event = range.getNextEvent();
             }
 
-            System.out.println();
-            System.out.println("touch&go section completed");
-            System.out.println();
+//            System.out.println();
+//            System.out.println("touch&go section completed");
+//            System.out.println();
 
-            printRanges(startOfTrack, endOfTrack);
+//            printRanges();
         }
 
         private Event1 putTouchAndGoEvent(Event1 landingEvent, Event1 takeoffEvent) {
@@ -270,7 +235,7 @@ public class Test {
             }
         }
 
-        private void printRanges(Event1 startOfTrack, Event1 endOfTrack) {
+        private void printRanges() {
             Range range;
             Event1 event = startOfTrack;
             while (event != endOfTrack) {
@@ -284,7 +249,11 @@ public class Test {
 
         List<Flight1> flights = new ArrayList<>();
 
-        public void buildIdealFlights() {
+        public void printFlights() {
+            flights.forEach(System.out::println);
+        }
+
+        public void buildFlights() {
             for (Event1 event = startOfTrack; event != endOfTrack; event = event.getNextRange().getNextEvent()) {
                 if (event.getType() != EventType.Takeoff) {
                     continue;
@@ -293,10 +262,19 @@ public class Test {
                 Flight1 flight = tryToBuildIdealFlight(event);
                 if (flight != null) {
                     flights.add(flight);
+                    continue;
+                }
+                flight = tryToTASFlight(event);
+                if (flight != null) {
+                    flights.add(flight);
+                    continue;
+                }
+                flight = tryToEllipseFlight(event);
+                if (flight != null) {
+                    flights.add(flight);
+//                    continue;
                 }
             }
-
-            flights.forEach(System.out::println);
         }
 
         private Flight1 tryToBuildIdealFlight(Event1 takeoffEvent) {
@@ -309,7 +287,7 @@ public class Test {
 
                 Event1 nextEvent = nextRange.getNextEvent();
                 if (nextEvent.getType() == EventType.Landing) {
-                    return new Flight1(takeoffEvent, nextEvent);
+                    return new Flight1(takeoffEvent, nextEvent, FlightMethod.Ideal);
                 } else if (nextEvent.getType() == EventType.TouchAndGo) {
                     event = nextEvent;
                     // and continue
@@ -321,10 +299,158 @@ public class Test {
             return null;
         }
 
-        public void printStats() {
-            int totalTakeoffs = 0;
-            int totalLandings = 0;
+        private Flight1 tryToTASFlight(Event1 takeoffEvent) {
+            Range lastFlyingRange = takeoffEvent.getNextRange();
+            Flightplan flightplan = Flightplan.fromPosition(lastFlyingRange.getLastPosition());
+            while (true) {
+                Event1 nextEvent = lastFlyingRange.getNextEvent();
+                if (nextEvent == endOfTrack) {
+                    return null;
+                } else if (nextEvent.getType() == EventType.Landing) {
+                    return new Flight1(takeoffEvent, nextEvent, FlightMethod.TAS);
+                } else if (nextEvent.getType() == EventType.TouchAndGo) {
+                    lastFlyingRange = nextEvent.getNextRange();
+                    continue;
+                    // and continue
+                }
 
+                Range nextRange = nextEvent.getNextRange();
+                boolean canWeSkipThisRange = false;
+                RangeType nextRangeType = nextRange.getType();
+                Range nextFlyingRange = null;
+                if (nextRangeType == RangeType.Offline) {
+                    nextFlyingRange = getNextFlyingRange(nextRange);
+                    if (nextFlyingRange == null) {
+                        return null;
+                    }
+
+                    // can we join lastFlyingRange and nextFlyingRange
+                    Position nextPosition = nextFlyingRange.getPositions().get(0);
+                    Position lastPosition = lastFlyingRange.getLastPosition();
+                    double distance = Geo.distance(lastPosition.getCoords(), nextPosition.getCoords());
+                    double hours = JavaTime.hoursBetween(lastPosition.getReportInfo().getDt(), nextPosition.getReportInfo().getDt());
+                    int groundspeed = (int) (distance / hours);
+
+                    String aircraftType = flightplan.getAircraftType();
+                    if (aircraftType != null) {
+                        Integer ias = getCruiseIas(aircraftType);
+                        if (ias != null) {
+                            int minAltitude = Math.min(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
+                            int maxAltitude = Math.max(lastPosition.getActualAltitude(), nextPosition.getActualAltitude());
+
+                            if (maxAltitude < 10000) {
+                                ias = (int) (ias * 0.6); // initial climb or approach speed
+                            } else if (maxAltitude < 20000) {
+                                ias = (int) (ias * 0.8); // climb or descend speed
+                            }
+
+                            int minTas = (int) (iasToTas(ias, minAltitude) * 0.66);
+                            int maxTas = (int) (iasToTas(ias, maxAltitude) * 1.33);
+
+                            if (minTas <= groundspeed && groundspeed <= maxTas) {
+                                // we can join two flying ranges divided by one offline range
+                                canWeSkipThisRange = true;
+                            }
+                        }
+                    }
+                } else {
+                    throw new IllegalStateException();
+                }
+
+                if (canWeSkipThisRange) {
+                    lastFlyingRange = nextFlyingRange;
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        private Flight1 tryToEllipseFlight(Event1 takeoffEvent) {
+            Range lastFlyingRange = takeoffEvent.getNextRange();
+            Flightplan flightplan = Flightplan.fromPosition(lastFlyingRange.getLastPosition());
+            EllipseCriterion criterion = new EllipseCriterion(takeoffEvent.getNextRange().getPositions().get(0), flightplan);
+            while (true) {
+                Event1 nextEvent = lastFlyingRange.getNextEvent();
+                if (nextEvent == endOfTrack) {
+                    return null;
+                } else if (nextEvent.getType() == EventType.Landing) {
+                    return new Flight1(takeoffEvent, nextEvent, FlightMethod.Ellipse);
+                } else if (nextEvent.getType() == EventType.TouchAndGo) {
+                    lastFlyingRange = nextEvent.getNextRange();
+                    continue;
+                    // and continue
+                }
+
+                Range nextRange = nextEvent.getNextRange();
+                boolean canWeSkipThisRange = false;
+                RangeType nextRangeType = nextRange.getType();
+                Range nextFlyingRange = null;
+                if (nextRangeType == RangeType.Offline) {
+                    nextFlyingRange = getNextFlyingRange(nextRange);
+                    if (nextFlyingRange == null) {
+                        return null;
+                    }
+
+                    // can we join lastFlyingRange and nextFlyingRange
+                    Position nextPosition = nextFlyingRange.getPositions().get(0);
+
+                    if (criterion.meets(nextPosition)) {
+                        canWeSkipThisRange = true;
+                    }
+                } else {
+                    throw new IllegalStateException();
+                }
+
+                if (canWeSkipThisRange) {
+                    lastFlyingRange = nextFlyingRange;
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        private int iasToTas(int ias, int altitude) {
+            return (int) (ias * .02 * altitude / 1000) + ias;
+        }
+
+        private Range getNextFlyingRange(Range range) {
+            Event1 event = range.getNextEvent();
+            while (event != endOfTrack) {
+                if (event.getType() == EventType.Takeoff) {
+                    return null;
+                } else if (event.getType() == EventType.Landing) {
+                    return null;
+                }
+
+                range = event.getNextRange();
+                if (range.getType() == RangeType.Flying) {
+                    return range;
+                }
+                event = range.getNextEvent();
+            }
+            return null;
+        }
+
+        private Integer getCruiseIas(String aircraftType) {
+            if (aircraftType.startsWith("B7")
+                    || aircraftType.startsWith("A3")
+                    || aircraftType.equals("CRJ7")) {
+                return 280;
+            }
+
+            switch (aircraftType) {
+                case "AT72":
+                    return 185;
+                case "DHC6":
+                    return 170;
+                case "M20T":
+                    return 140;
+            }
+
+            throw new IllegalArgumentException("Unknown aircraft type '" + aircraftType + "'");
+        }
+
+        public void printStats() {
             Event1 event = startOfTrack;
             while (event != endOfTrack) {
                 if (event.getType() == EventType.Takeoff) {
@@ -335,21 +461,25 @@ public class Test {
                 event = event.getNextRange().getNextEvent();
             }
 
-            int unrecognizedTakeoffs = totalTakeoffs - flights.size();
-            int unrecognizedLandings = totalLandings - flights.size();
+            totalFlights += flights.size();
+
+            int unrecognizedTakeoffs = totalTakeoffs - totalFlights;
+            int unrecognizedLandings = totalLandings - totalFlights;
 
             System.out.println(String.format("Stats: total T/Os %d    LANDs %d    Flights %d    UNRECONG T/O %d    LANDs %d",
-                    totalTakeoffs, totalLandings, flights.size(), unrecognizedTakeoffs, unrecognizedLandings));
+                    totalTakeoffs, totalLandings, totalFlights, unrecognizedTakeoffs, unrecognizedLandings));
         }
     }
 
     private static class Flight1 {
         private Event1 takeoffEvent;
         private Event1 landingEvent;
+        private FlightMethod method;
 
-        public Flight1(Event1 takeoffEvent, Event1 landingEvent) {
+        public Flight1(Event1 takeoffEvent, Event1 landingEvent, FlightMethod method) {
             this.takeoffEvent = takeoffEvent;
             this.landingEvent = landingEvent;
+            this.method = method;
         }
 
         @Override
@@ -357,8 +487,13 @@ public class Test {
             return "Flight "
                     + takeoffEvent.getNextRange().getPositions().get(0).getAirportIcao()
                     + " - "
-                    + landingEvent.getPreviousRange().getLastPosition().getAirportIcao();
+                    + landingEvent.getPreviousRange().getLastPosition().getAirportIcao()
+                    + "      (" + method + ")";
         }
+    }
+
+    private enum FlightMethod {
+        Ideal, TAS, Ellipse
     }
 
     private static class Event1 {
@@ -533,27 +668,10 @@ public class Test {
     private enum EventType {
         Takeoff,
         Landing,
-        StartOfTrack, Online, Offline, EndOfTrack, TouchAndGo
-    }
-
-    private static class Flight {
-        private int pilotNumber;
-        private String status;
-        private String callsign;
-        private String aircraftType;
-        private String aircraftRegNo;
-        private String origin;
-        private String destination;
-        private String plannedOrigin;
-        private String plannedDestination;
-        private Double distanceFlown;
-        private Double flownTime;
-        private Double networkTime;
-        private List<EventInfo> events;
-    }
-
-    private static class EventInfo {
-        private EventType eventType;
-        private String report;
+        StartOfTrack,
+        Online,
+        Offline,
+        EndOfTrack,
+        TouchAndGo
     }
 }

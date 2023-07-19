@@ -1,4 +1,4 @@
-package net.simforge.flight.core.storage;
+package net.simforge.flight.core.storage.impl;
 
 public class LocalGsonFileStorageRules {
     public static String pilotFolderName(int pilotNumber) {

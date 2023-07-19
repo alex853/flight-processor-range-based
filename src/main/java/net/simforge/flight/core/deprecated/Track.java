@@ -1,10 +1,11 @@
-package net.simforge.flight.processor.rangebased;
+package net.simforge.flight.core.deprecated;
 
 import net.simforge.atmosphere.Airspeed;
 import net.simforge.commons.misc.Geo;
 import net.simforge.commons.misc.JavaTime;
 import net.simforge.flight.core.EllipseCriterion;
 import net.simforge.flight.core.Flightplan;
+import net.simforge.flight.processor.rangebased.Flight1;
 import net.simforge.networkview.core.report.ReportUtils;
 import net.simforge.networkview.core.report.persistence.Report;
 import net.simforge.networkview.core.report.persistence.ReportPilotPosition;

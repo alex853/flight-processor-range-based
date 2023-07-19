@@ -2,6 +2,7 @@ package net.simforge.flight.processor.rangebased;
 
 import net.simforge.commons.bm.BMC;
 import net.simforge.flight.core.storage.FlightStorageService;
+import net.simforge.flight.core.storage.StatusService;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.ReportUtils;
@@ -17,12 +18,12 @@ public class IncrementalProcessor {
 
     private final ReportSessionManager sessionManager;
     private final ReportOpsService reportOpsService;
-    private final ProcessorPOCStatusService statusService;
+    private final StatusService statusService;
     private final FlightStorageService flightStorageService;
 
     private ReportTimeline timeline;
 
-    public IncrementalProcessor(ReportSessionManager sessionManager, ReportOpsService reportOpsService, ProcessorPOCStatusService statusService, FlightStorageService flightStorageService) {
+    public IncrementalProcessor(ReportSessionManager sessionManager, ReportOpsService reportOpsService, StatusService statusService, FlightStorageService flightStorageService) {
         this.sessionManager = sessionManager;
         this.reportOpsService = reportOpsService;
         this.statusService = statusService;
@@ -101,7 +102,7 @@ public class IncrementalProcessor {
                 }
             }
 
-            logger.info(" -     ALL {} DONE", pilotNumbers.size());
+            logger.info(" -     Positions : ALL {} DONE", pilotNumbers.size());
             statusService.saveLastProcessedReport(newLastProcessedReport);
         }
     }

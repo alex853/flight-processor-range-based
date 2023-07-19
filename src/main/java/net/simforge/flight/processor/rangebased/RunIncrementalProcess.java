@@ -2,7 +2,9 @@ package net.simforge.flight.processor.rangebased;
 
 import net.simforge.commons.legacy.BM;
 import net.simforge.flight.core.storage.FlightStorageService;
-import net.simforge.flight.core.storage.LocalGsonFlightStorage;
+import net.simforge.flight.core.storage.StatusService;
+import net.simforge.flight.core.storage.impl.LocalGsonFlightStorage;
+import net.simforge.flight.core.storage.impl.LocalGsonStatusService;
 import net.simforge.networkview.core.Network;
 import net.simforge.networkview.core.report.persistence.BaseReportOpsService;
 import net.simforge.networkview.core.report.persistence.ReportOpsService;
@@ -18,7 +20,7 @@ public class RunIncrementalProcess {
 
         ReportSessionManager sessionManager = new ReportSessionManager();
         ReportOpsService reportOpsService = new BaseReportOpsService(sessionManager, Network.VATSIM);
-        ProcessorPOCStatusService statusService = new ProcessorPOCStatusServiceLocalGson(storagePath);
+        StatusService statusService = new LocalGsonStatusService(storagePath);
         FlightStorageService flightStorageService = new LocalGsonFlightStorage(storagePath);
 
         IncrementalProcessor processor = new IncrementalProcessor(

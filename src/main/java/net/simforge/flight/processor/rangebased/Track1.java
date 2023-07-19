@@ -38,7 +38,7 @@ public class Track1 {
 
             List<Report> reports = timeline.getReportsInRange(currentRange);
             for (Report report : reports) {
-                try (BMC ignored1 = BMC.start("Track1.build/reportPilotPositions")) { // todo ak2 is there a need to optimize nearest airports?
+                try (BMC ignored1 = BMC.start("Track1.build/reportPilotPositions")) {
                     ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
                     Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
                     track.trackData.add(position);
