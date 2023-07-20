@@ -19,7 +19,7 @@ public class ReportTimeline {
         return String.CASE_INSENSITIVE_ORDER.compare(r1, r2);
     };
 
-    private final Report[] reports;
+    private Report[] reports;
 
     private ReportTimeline(List<Report> reports) {
         this.reports = reports.toArray(new Report[0]);
@@ -95,5 +95,13 @@ public class ReportTimeline {
             }
             return result;
         }
+    }
+
+    public void addReport(Report nextReport) {
+        // todo ak2 this is very special method, probably it should be reworked in somewhat else (builder, recreation?)
+        Report[] newReports = new Report[reports.length + 1];
+        System.arraycopy(reports, 0, newReports, 0, reports.length);
+        newReports[reports.length] = nextReport;
+        reports = newReports;
     }
 }

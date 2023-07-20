@@ -36,8 +36,19 @@ public class IncrementalProcessor {
 
     public void process() {
         try (BMC ignored = BMC.start("IncrementalProcessor.process")) {
-            timeline = ReportTimeline.load(reportOpsService);
             // todo ak3 support for "gap report"
+            if (timeline == null) {
+                timeline = ReportTimeline.load(reportOpsService);
+            } else {
+                while (true) { // todo ak3 timeline cleanup?
+                    Report nextReport = reportOpsService.loadNextReport(timeline.getLastReport().getReport());
+                    if (nextReport == null) {
+                        break;
+                    }
+
+                    timeline.addReport(nextReport);
+                }
+            }
 
             ReportInfo lastProcessedReport = statusService.loadLastProcessedReport();
             Report latestReport = reportOpsService.loadLastReport();
@@ -134,7 +145,7 @@ public class IncrementalProcessor {
 
             for (int pilotNumber : pilotNumbers) {
                 try {
-                    processPilot(pilotNumber);
+                    processPilot(pilotNumber, newLastProcessedReport);
                 } catch (Exception e) {
                     logger.warn("Error on processing pilot " + pilotNumber, e);
                 }
@@ -184,7 +195,7 @@ public class IncrementalProcessor {
 
     // improvement - this algorithm ignores an ability to put all that info into a memory cache
     // improvement - memory cache will complicate things however significantly improve the performance
-    private void processPilot(Integer pilotNumber) {
+    private void processPilot(Integer pilotNumber, Report processorTillProcessReport) {
         try (BMC ignored = BMC.start("IncrementalProcessor.processPilot")) {
             LoadedPilotInfo draftLoadedPilotInfo = loadedPilots.get(pilotNumber);
             PilotContext pilotContext;
@@ -215,7 +226,7 @@ public class IncrementalProcessor {
                 }
             }
 
-            ReportInfo processTrackTillReport = timeline.getLastReport();
+            ReportInfo processTrackTillReport = processorTillProcessReport;//timeline.getLastReport(); // todo ak2 timeline vs separate logic in processor - there are issues that need to be solved
 
 /*            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 Flight1 firstFlight = oldFlights.get(0);
@@ -232,6 +243,7 @@ public class IncrementalProcessor {
             if (!foundPositions.isPresent()) {
                 logger.info("            Pilot {} - Track Data - Loading Positions since {} till {}", pilotNumber, processTrackSinceReport.getReport(), processTrackTillReport.getReport());
                 List<ReportPilotPosition> reportPilotPositions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
+                trackData.clearPositions();
                 boolean success = trackData.storePositions(timeline, currentRange, reportPilotPositions);
                 if (!success) {
                     logger.warn("            Pilot {} - Track Data - UNABLE TO STORE POSITIONS, SOMETHING IS WRONG", pilotNumber);

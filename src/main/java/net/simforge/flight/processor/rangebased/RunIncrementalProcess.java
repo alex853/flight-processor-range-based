@@ -9,8 +9,11 @@ import net.simforge.networkview.core.Network;
 import net.simforge.networkview.core.report.persistence.BaseReportOpsService;
 import net.simforge.networkview.core.report.persistence.ReportOpsService;
 import net.simforge.networkview.core.report.persistence.ReportSessionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RunIncrementalProcess {
+    private static final Logger logger = LoggerFactory.getLogger(RunIncrementalProcess.class);
     public static void main(String[] args) throws InterruptedException {
         String storagePath = "./range-based-gson-local-storage";
         boolean singleRun = false;
@@ -30,7 +33,15 @@ public class RunIncrementalProcess {
                 flightStorageService);
 
         while (!singleRun) {
-            processor.process();
+            try {
+                processor.process();
+            } catch (Throwable t) {
+                logger.error("Error on processing", t);
+                logger.warn("---===### THE PROCESSING WILL BE RETRIED IN 60 SECS ###===---");
+                Thread.sleep(60000);
+                continue;
+            }
+
             UnknownAircraftTypes.printStats();
             Thread.sleep(1000);
 

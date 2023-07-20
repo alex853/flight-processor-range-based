@@ -23,6 +23,7 @@ public class Track1Data {
         return new Track1Data(pilotNumber);
     }
 
+    // todo ak2 split it into 2 methods - store sequence and attach point
     public boolean storePositions(ReportTimeline timeline, ReportRange loadedRange, List<ReportPilotPosition> loadedPositions) {
         try (BMC ignored = BMC.start("Track1Data.storePositions")) {
             Optional<ReportRange> existingRange = getRange();
@@ -60,6 +61,10 @@ public class Track1Data {
             Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
             trackData.add(position);
         }
+    }
+
+    public void clearPositions() {
+        trackData.clear();
     }
 
     public Optional<List<Position>> getPositions(ReportRange range) {
