@@ -22,14 +22,14 @@ public class LocalGsonStatusService implements StatusService {
 
     @Override
     public PilotContext loadPilotContext(int pilotNumber) {
-        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.loadPilotContext")) {
+        try (BMC ignored = BMC.start("LocalGsonStatusService.loadPilotContext")) {
             return load(pilotContextFile(pilotNumber), PilotContext.class);
         }
     }
 
     @Override
     public PilotContext createPilotContext(int pilotNumber) {
-        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.createPilotContext")) {
+        try (BMC ignored = BMC.start("LocalGsonStatusService.createPilotContext")) {
             PilotContext pilotContext = loadPilotContext(pilotNumber);
             if (pilotContext != null) {
                 throw new IllegalArgumentException("Pilot context for pilot " + pilotNumber + " exists");
@@ -42,7 +42,7 @@ public class LocalGsonStatusService implements StatusService {
 
     @Override
     public void savePilotContext(PilotContext pilotContext) {
-        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.savePilotContext")) {
+        try (BMC ignored = BMC.start("LocalGsonStatusService.savePilotContext")) {
             save(pilotContextFile(pilotContext.getPilotNumber()), pilotContext);
         }
     }
@@ -53,7 +53,7 @@ public class LocalGsonStatusService implements StatusService {
 
     @Override
     public ReportInfo loadLastProcessedReport() {
-        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.loadLastProcessedReport")) {
+        try (BMC ignored = BMC.start("LocalGsonStatusService.loadLastProcessedReport")) {
             ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
             if (processorStatus == null) {
                 return null;
@@ -64,7 +64,7 @@ public class LocalGsonStatusService implements StatusService {
 
     @Override
     public void saveLastProcessedReport(ReportInfo report) {
-        try (BMC ignored = BMC.start("ProcessorPOCStatusServiceLocalGson.saveLastProcessedReport")) {
+        try (BMC ignored = BMC.start("LocalGsonStatusService.saveLastProcessedReport")) {
             ProcessorStatus processorStatus = load(getProcessorStatusFile(), ProcessorStatus.class);
             if (processorStatus == null) {
                 processorStatus = new ProcessorStatus();
