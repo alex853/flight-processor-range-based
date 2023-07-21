@@ -32,6 +32,7 @@ public class UnknownAircraftTypes {
         List<Map.Entry<String, Integer>> sortedEntries = new ArrayList<>(data.entrySet());
         sortedEntries.sort(Comparator.comparingInt(Map.Entry::getValue));
         int printed = 0;
+        logger.info("                        TOP 10");
         for (int i = sortedEntries.size() - 1; i >= 0; i--) {
             Map.Entry<String, Integer> entry = sortedEntries.get(i);
             logger.info("                         * {} - {} times", entry.getKey(), entry.getValue());

@@ -247,7 +247,7 @@ public class IncrementalProcessor {
             Track1Data trackData = loadedPilotInfo.getTrackData();
             Optional<List<Position>> foundPositions = trackData.getPositions(currentRange);
             if (!foundPositions.isPresent()) {
-                logger.info("            Pilot {} - Track Data - Loading Positions since {} till {}", pilotNumber, processTrackSinceReport.getReport(), processTrackTillReport.getReport());
+                logger.info("            Pilot {} - Track Data - Loading {} - {}", pilotNumber, processTrackSinceReport.getReport(), processTrackTillReport.getReport());
                 List<ReportPilotPosition> reportPilotPositions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
                 trackData.clearPositions();
                 boolean success = trackData.storePositions(timeline, currentRange, reportPilotPositions);
