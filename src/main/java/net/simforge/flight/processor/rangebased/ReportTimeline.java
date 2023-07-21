@@ -97,6 +97,21 @@ public class ReportTimeline {
         }
     }
 
+    public void deleteReportsLaterThan(String report) {
+        int index = Arrays.binarySearch(reports, report, binarySearchComparator);
+        if (index < 0) {
+            throw new IllegalStateException("Unable to find report which should be in the list");
+        }
+
+        if (index == reports.length - 1) {
+            return;
+        }
+
+        Report[] newReports = new Report[index + 1];
+        System.arraycopy(reports, 0, newReports, 0, index + 1);
+        reports = newReports;
+    }
+
     public void addReport(Report nextReport) {
         // todo ak2 this is very special method, probably it should be reworked in somewhat else (builder, recreation?)
         Report[] newReports = new Report[reports.length + 1];

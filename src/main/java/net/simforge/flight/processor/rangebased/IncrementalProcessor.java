@@ -25,6 +25,8 @@ public class IncrementalProcessor {
 
     private final Map<Integer, LoadedPilotInfo> loadedPilots = new TreeMap<>();
 
+    // todo ak3 timeline cleanup?
+    // todo ak3 support for "gap report"
     private ReportTimeline timeline;
 
     public IncrementalProcessor(ReportSessionManager sessionManager, ReportOpsService reportOpsService, StatusService statusService, FlightStorageService flightStorageService) {
@@ -36,45 +38,41 @@ public class IncrementalProcessor {
 
     public void process() {
         try (BMC ignored = BMC.start("IncrementalProcessor.process")) {
-            // todo ak3 support for "gap report"
-            if (timeline == null) {
-                timeline = ReportTimeline.load(reportOpsService);
-            } else {
-                while (true) { // todo ak3 timeline cleanup?
-                    Report nextReport = reportOpsService.loadNextReport(timeline.getLastReport().getReport());
-                    if (nextReport == null) {
-                        break;
-                    }
-
-                    timeline.addReport(nextReport);
-                }
-            }
-
             ReportInfo lastProcessedReport = statusService.loadLastProcessedReport();
-            Report latestReport = reportOpsService.loadLastReport();
 
             Report newLastProcessedReport = null;
             Set<Integer> pilotNumbers = new TreeSet<>();
+
             if (lastProcessedReport == null) {
+
+                Report latestReport = reportOpsService.loadLastReport();
                 if (!Boolean.TRUE.equals(latestReport.getParsed())) {
+                    logger.warn("Latest report {} is not parsed, need to wait a bit", latestReport.getReport());
                     return; // need to wait a bit
                 }
+
+                timeline = ReportTimeline.load(reportOpsService);
+                timeline.deleteReportsLaterThan(latestReport.getReport());
+
                 newLastProcessedReport = latestReport;
                 pilotNumbers.addAll(reportOpsService.loadPilotPositions(latestReport).stream()
                         .map(ReportPilotPosition::getPilotNumber)
                         .collect(Collectors.toSet()));
                 logger.info("Pilot Numbers - loaded for {} - INITIAL LOADING", ReportUtils.log(latestReport));
+
             } else {
+
+                if (timeline == null) {
+                    timeline = ReportTimeline.load(reportOpsService);
+                }
+
                 String currReport = lastProcessedReport.getReport();
+                timeline.deleteReportsLaterThan(currReport);
+
                 int reportCounter = 0;
                 while (true) {
                     Report nextReport = reportOpsService.loadNextReport(currReport);
                     if (nextReport == null || !Boolean.TRUE.equals(nextReport.getParsed())) {
-                        break;
-                    }
-
-                    if (NewMethods.isEarlierThan(timeline.getLastReport(), nextReport.getReport())) {
-                        logger.warn("TIMELINE IS LAGGING, Last Report {}, Next Report {}", timeline.getLastReport().getReport(), nextReport.getReport());
                         break;
                     }
 
@@ -83,6 +81,8 @@ public class IncrementalProcessor {
                         break;
                     }
                     reportCounter++;
+
+                    timeline.addReport(nextReport);
 
                     List<ReportPilotPosition> positions = reportOpsService.loadPilotPositions(nextReport);
 
