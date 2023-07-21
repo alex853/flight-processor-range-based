@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 public class Track1Data {
     private final int pilotNumber;
-    private final LinkedList<Position> trackData = new LinkedList<>();
+    private List<Position> trackData = new ArrayList<>();
 
     private Track1Data(int pilotNumber) {
         this.pilotNumber = pilotNumber;
@@ -74,15 +74,28 @@ public class Track1Data {
                 return Optional.empty();
             }
 
-            if (!existingRange.get().isWithin(range.getSince())
-                    || !existingRange.get().isWithin(range.getTill())) {
-                return Optional.empty();
+            int left = Collections.binarySearch(trackData, range.getSince(), trackDataComparator);
+            int right = Collections.binarySearch(trackData, range.getTill(), trackDataComparator);
+
+            if (left < 0) {
+                left = -(left + 1);
+                if (left == 0) {
+                    return Optional.empty(); // "since" report is earlier that the earliest - no positions will be returned
+                } else if (left == trackData.size()) {
+                    return Optional.empty(); // "since" report is sooner that the soonest - no positions will be returned
+                }
             }
 
-            ReportRange intersection = existingRange.get().intersect(range);
-            return Optional.of(trackData.stream()
-                    .filter(p -> intersection.isWithin(p.getReportInfo()))
-                    .collect(Collectors.toList()));
+            if (right < 0) {
+                right = -(right + 1);
+                if (right == 0) {
+                    return Optional.empty(); // "till" report is earlier that the earliest - no positions will be returned
+                } else if (right == trackData.size()) {
+                    return Optional.empty(); // "till" report is sooner that the soonest - no positions will be returned
+                }
+            }
+
+            return Optional.of(trackData.subList(left, right + 1));
         }
     }
 
@@ -90,7 +103,7 @@ public class Track1Data {
         if (trackData.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(ReportRange.between(trackData.getFirst().getReportInfo(), trackData.getLast().getReportInfo()));
+        return Optional.of(ReportRange.between(trackData.get(0).getReportInfo(), trackData.get(trackData.size() - 1).getReportInfo()));
     }
 
     public int size() {
@@ -101,26 +114,52 @@ public class Track1Data {
         return pilotNumber;
     }
 
-    public int removePositionsOlderThanTimestamp(String thresholdTimestamp) {
-        int counter = 0;
-        while (!trackData.isEmpty() && NewMethods.isEarlierThan(trackData.get(0).getReportInfo(), thresholdTimestamp)) {
-            trackData.removeFirst();
-            counter++;
+    public void removePositionsOlderThanTimestamp(String thresholdTimestamp) {
+        int index = Collections.binarySearch(trackData, thresholdTimestamp, trackDataComparator);
+
+        if (index < 0) {
+            index = -(index + 1);
+            index--; // this is because we did not find exact match and we need to keep one more report in the list to prevent reloading
         }
-        return counter;
+
+        if (index == trackData.size()) {
+            trackData.clear();
+            return;
+        }
+
+        if (index <= 0) {
+            return;
+        }
+
+        trackData = new ArrayList<>(trackData.subList(index, trackData.size()));
     }
 
     public boolean hasOnlinePositionsLaterThan(String thresholdTimestamp) {
-        Iterator<Position> reversedIterator = trackData.descendingIterator();
-        while (reversedIterator.hasNext()) {
-            Position position = reversedIterator.next();
+        for (int index = trackData.size() - 1; index >= 0; index--) {
+            Position position = trackData.get(index);
+
             if (NewMethods.isEarlierThan(position.getReportInfo(), thresholdTimestamp)) {
                 break;
             }
+
             if (position.isPositionKnown()) {
                 return true;
             }
         }
+
         return false;
     }
+
+    private static final Comparator trackDataComparator = new Comparator() {
+        @Override
+        public int compare(Object o1, Object o2) {
+            return getReport(o1).compareTo(getReport(o2));
+        }
+
+        private String getReport(Object o) {
+            return o instanceof Position ? ((Position) o).getReportInfo().getReport() :
+                    o instanceof ReportInfo ? ((ReportInfo) o).getReport() :
+                            (String) o;
+        }
+    };
 }
