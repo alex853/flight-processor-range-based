@@ -226,16 +226,22 @@ public class IncrementalProcessor {
                 }
             }
 
-            ReportInfo processTrackTillReport = processorTillProcessReport;//timeline.getLastReport(); // todo ak2 timeline vs separate logic in processor - there are issues that need to be solved
+            List<Flight1> oldFlights = loadedPilotInfo.getFlights();
+            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
+                final ReportInfo processTrackSinceReport1 = processTrackSinceReport;
+                Optional<Flight1> flightPartiallyPresentedInCurrentRange = oldFlights.stream().filter(flight ->
+                        ReportRange.between(
+                                        flight.getFirstSeen().getReportInfo(),
+                                        flight.getLastSeen().getReportInfo())
+                                .isWithin(processTrackSinceReport1)
+                ).findFirst();
 
-/*            if (lastProcessedReport != null && !oldFlights.isEmpty()) {
-                Flight1 firstFlight = oldFlights.get(0);
-                ReportRange firstFlightRange = ReportRange.between(firstFlight.getFirstSeen().getReportInfo(), firstFlight.getLastSeen().getReportInfo());
-
-                if (firstFlightRange.isWithin(lastProcessedReport)) { // todo ak3 rename it to hasReportWithinBoundaries
-                    processTrackSinceReport = firstFlight.getFirstSeen().getReportInfo();
+                if (flightPartiallyPresentedInCurrentRange.isPresent()) {
+                    processTrackSinceReport = flightPartiallyPresentedInCurrentRange.get().getFirstSeen().getReportInfo();
                 }
-            }*/
+            }
+
+            ReportInfo processTrackTillReport = processorTillProcessReport;
 
             ReportRange currentRange = ReportRange.between(processTrackSinceReport, processTrackTillReport);
             Track1Data trackData = loadedPilotInfo.getTrackData();
@@ -253,7 +259,6 @@ public class IncrementalProcessor {
 
             Track1 track = Track1.build(pilotNumber, foundPositions.get());
 
-            List<Flight1> oldFlights = loadedPilotInfo.getFlights();
             track.getFlights().forEach(flight1 -> {
                 ReportRange flight1Range = ReportRange.between(flight1.getFirstSeen().getReportInfo(), flight1.getLastSeen().getReportInfo());
                 Collection<Flight1> overlappedFlights = Flight1Util.findOverlappedFlights(flight1Range, oldFlights);
