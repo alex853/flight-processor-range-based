@@ -18,6 +18,10 @@ import java.util.stream.Collectors;
 public class IncrementalProcessor {
     private static final Logger logger = LoggerFactory.getLogger(IncrementalProcessor.class);
 
+    public static final int BASE_TRACK_LENGTH_HOURS = 18;
+    public static final int MAX_TRACK_LENGHT_HOURS = 24;
+    public static final int REMOVE_IF_OFFLINE_HOURS = 1;
+
     private final ReportSessionManager sessionManager;
     private final ReportOpsService reportOpsService;
     private final StatusService statusService;
@@ -165,7 +169,7 @@ public class IncrementalProcessor {
             final ReportInfo reportToDetermineRemoval = newLastProcessedReport;
             loadedPilots.values().forEach(loadedPilotInfo -> {
                 Track1Data trackData = loadedPilotInfo.getTrackData();
-                if (!trackData.hasOnlinePositionsLaterThan(NewMethods.minusHours(reportToDetermineRemoval, 6))) {
+                if (!trackData.hasOnlinePositionsLaterThan(NewMethods.minusHours(reportToDetermineRemoval, REMOVE_IF_OFFLINE_HOURS))) {
                     pilotsToRemove.add(trackData.getPilotNumber());
                 }
             });
@@ -218,7 +222,7 @@ public class IncrementalProcessor {
 
             ReportInfo processTrackSinceReport = timeline.getFirstReport();
             if (lastProcessedReport != null) {
-                String calculatedDateTime = NewMethods.minusHours(lastProcessedReport, 24);
+                String calculatedDateTime = NewMethods.minusHours(lastProcessedReport, BASE_TRACK_LENGTH_HOURS);
                 processTrackSinceReport = timeline.findPreviousReport(calculatedDateTime);
 
                 if (processTrackSinceReport == null) {
@@ -229,15 +233,15 @@ public class IncrementalProcessor {
             List<Flight1> oldFlights = loadedPilotInfo.getFlights();
             if (lastProcessedReport != null && !oldFlights.isEmpty()) {
                 final ReportInfo processTrackSinceReport1 = processTrackSinceReport;
-                Optional<Flight1> flightPartiallyPresentedInCurrentRange = oldFlights.stream().filter(flight ->
+                Optional<Flight1> firstFlightWithinProcessingRange = oldFlights.stream().filter(flight ->
                         ReportRange.between(
                                         flight.getFirstSeen().getReportInfo(),
                                         flight.getLastSeen().getReportInfo())
                                 .isWithin(processTrackSinceReport1)
                 ).findFirst();
 
-                if (flightPartiallyPresentedInCurrentRange.isPresent()) {
-                    processTrackSinceReport = flightPartiallyPresentedInCurrentRange.get().getFirstSeen().getReportInfo();
+                if (firstFlightWithinProcessingRange.isPresent()) {
+                    processTrackSinceReport = firstFlightWithinProcessingRange.get().getFirstSeen().getReportInfo();
                 }
             }
 
@@ -273,7 +277,12 @@ public class IncrementalProcessor {
 
             pilotContext.setLastIncrementallyProcessedReport(processTrackTillReport);
             statusService.savePilotContext(pilotContext);
-            trackData.removePositionsOlderThanTimestamp(NewMethods.minusHours(processTrackTillReport, 30));
+
+            String removalThreshold = NewMethods.minusHours(processTrackTillReport, MAX_TRACK_LENGHT_HOURS);
+            if (NewMethods.isEarlierThan(processTrackSinceReport, removalThreshold)) {
+                removalThreshold = processTrackSinceReport.getReport();
+            }
+            trackData.removePositionsOlderThanTimestamp(removalThreshold);
         }
     }
 
