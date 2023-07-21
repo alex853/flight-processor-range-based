@@ -25,4 +25,10 @@ hs_err_pid*
 .idea/
 .gradle/
 build/
+
+data/
+markers/
+starts/
+log/
+*.lck
 range-*
