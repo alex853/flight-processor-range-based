@@ -5,6 +5,7 @@ import net.simforge.commons.io.IOHelper;
 import net.simforge.flight.processor.rangebased.Flight1;
 import net.simforge.flight.processor.rangebased.ReportTimeline;
 import net.simforge.flight.processor.rangebased.Track1;
+import net.simforge.flight.processor.rangebased.Track1Data;
 import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
@@ -81,7 +82,10 @@ public abstract class AbstractTrackTest {
         ReportInfo processTrackTillReport = timeline.getLastReport();
 
         List<ReportPilotPosition> positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
-        Track1 track = Track1.build(ReportRange.between(processTrackSinceReport, processTrackTillReport), timeline, positions);
+        Track1Data trackData = Track1Data.forPilot(pilotNumber);
+        ReportRange range = ReportRange.between(processTrackSinceReport, processTrackTillReport);
+        trackData.storePositions(timeline, range, positions);
+        Track1 track = Track1.build(pilotNumber, trackData.getPositions(range).get());
         return track.getFlights();
     }
 
@@ -102,7 +106,10 @@ public abstract class AbstractTrackTest {
         ReportInfo processTrackTillReport = timeline.findPreviousReport(toReport);
 
         List<ReportPilotPosition> positions = reportOpsService.loadPilotPositionsSinceTill(pilotNumber, processTrackSinceReport, processTrackTillReport);
-        Track1 track = Track1.build(ReportRange.between(processTrackSinceReport, processTrackTillReport), timeline, positions);
+        Track1Data trackData = Track1Data.forPilot(pilotNumber);
+        ReportRange range = ReportRange.between(processTrackSinceReport, processTrackTillReport);
+        trackData.storePositions(timeline, range, positions);
+        Track1 track = Track1.build(pilotNumber, trackData.getPositions(range).get());
         return track.getFlights();
     }
 }
