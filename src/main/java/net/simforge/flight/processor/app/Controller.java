@@ -33,7 +33,7 @@ public class Controller {
         Map<String, Object> status = new HashMap<>();
 
         int processedReports = LastProcessedReports.reportsProcessedInLast10Mins();
-        status.put("processedReports", processedReports);
+        status.put("processedReportsInLast10Mins", processedReports);
 
         boolean ok = processedReports >= 4;
 
