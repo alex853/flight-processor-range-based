@@ -29,9 +29,9 @@ public class IncrementalProcessor {
 
     private final Map<Integer, LoadedPilotInfo> loadedPilots = new TreeMap<>();
 
-    // todo ak3 timeline cleanup?
     // todo ak3 support for "gap report"
     private ReportTimeline timeline;
+    private long timelineLastReload;
 
     public IncrementalProcessor(ReportSessionManager sessionManager, ReportOpsService reportOpsService, StatusService statusService, FlightStorageService flightStorageService) {
         this.sessionManager = sessionManager;
@@ -66,7 +66,9 @@ public class IncrementalProcessor {
 
             } else {
 
-                if (timeline == null) {
+                if (timeline == null
+                        || (System.currentTimeMillis() - timelineLastReload > 3600000)) {
+                    logger.warn("TIMELINE FULL RELOAD");
                     timeline = ReportTimeline.load(reportOpsService);
                 }
 
