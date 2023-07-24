@@ -47,16 +47,11 @@ public class UnknownAircraftTypes {
         changedSinceLastStats = false;
 
         List<Map.Entry<String, Integer>> top10 = getTop10();
-        int printed = 0;
+
         log.info("                        TOP 10");
-        for (int i = top10.size() - 1; i >= 0; i--) {
-            Map.Entry<String, Integer> entry = top10.get(i);
+        for(Map.Entry<String, Integer> entry : top10) {
             log.info("                         * {} - {} times", entry.getKey(), entry.getValue());
-            printed++;
-            if (printed == 10) {
-                break;
-            }
         }
-        log.info("                        Total {} aircraft types", top10.size());
+        log.info("                        Total {} aircraft types", data.size());
     }
 }
