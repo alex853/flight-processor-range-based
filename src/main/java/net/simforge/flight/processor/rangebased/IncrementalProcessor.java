@@ -70,6 +70,7 @@ public class IncrementalProcessor {
                         || (System.currentTimeMillis() - timelineLastReload > 3600000)) {
                     logger.warn("TIMELINE FULL RELOAD");
                     timeline = ReportTimeline.load(reportOpsService);
+                    timelineLastReload = System.currentTimeMillis();
                 }
 
                 String currReport = lastProcessedReport.getReport();
@@ -166,6 +167,7 @@ public class IncrementalProcessor {
 
             logger.info(" -     Positions : ALL {} DONE", pilotNumbers.size());
             statusService.saveLastProcessedReport(newLastProcessedReport);
+            LastProcessedReports.save(newLastProcessedReport.getReport());
 
             Set<Integer> pilotsToRemove = new TreeSet<>();
             final ReportInfo reportToDetermineRemoval = newLastProcessedReport;

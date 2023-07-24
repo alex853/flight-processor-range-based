@@ -40,7 +40,6 @@ dependencies {
 
     testImplementation 'junit:junit:4.11'
 
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

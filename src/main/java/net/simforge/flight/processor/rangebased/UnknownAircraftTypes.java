@@ -6,18 +6,35 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public class UnknownAircraftTypes {
-    private static final Logger logger = LoggerFactory.getLogger(UnknownAircraftTypes.class);
+    private static final Logger log = LoggerFactory.getLogger(UnknownAircraftTypes.class);
 
     private final static Map<String, Integer> data = new HashMap<>();
     private static boolean changedSinceLastStats;
     private static long lastStats;
 
-    public static void add(String aircraftType) {
+    public static synchronized void add(String aircraftType) {
         data.compute(aircraftType, (unused, current) -> current != null ? current + 1 : 1);
         changedSinceLastStats = true;
     }
 
-    public static void printStats() {
+    public static synchronized List<Map.Entry<String, Integer>> getAll() {
+        List<Map.Entry<String, Integer>> sortedEntries = new ArrayList<>(data.entrySet());
+        sortedEntries.sort(Comparator.comparingInt(e -> -e.getValue()));
+        return sortedEntries;
+
+    }
+
+    public static synchronized List<Map.Entry<String, Integer>> getTop10() {
+        List<Map.Entry<String, Integer>> sortedEntries = new ArrayList<>(data.entrySet());
+        sortedEntries.sort(Comparator.comparingInt(e -> -e.getValue()));
+        return sortedEntries.size() < 10 ? sortedEntries : sortedEntries.subList(0, 10);
+    }
+
+    public static synchronized void clear() {
+        data.clear();
+    }
+
+    public static synchronized void printStats() {
         if (!changedSinceLastStats) {
             return;
         }
@@ -29,18 +46,17 @@ public class UnknownAircraftTypes {
         lastStats = System.currentTimeMillis();
         changedSinceLastStats = false;
 
-        List<Map.Entry<String, Integer>> sortedEntries = new ArrayList<>(data.entrySet());
-        sortedEntries.sort(Comparator.comparingInt(Map.Entry::getValue));
+        List<Map.Entry<String, Integer>> top10 = getTop10();
         int printed = 0;
-        logger.info("                        TOP 10");
-        for (int i = sortedEntries.size() - 1; i >= 0; i--) {
-            Map.Entry<String, Integer> entry = sortedEntries.get(i);
-            logger.info("                         * {} - {} times", entry.getKey(), entry.getValue());
+        log.info("                        TOP 10");
+        for (int i = top10.size() - 1; i >= 0; i--) {
+            Map.Entry<String, Integer> entry = top10.get(i);
+            log.info("                         * {} - {} times", entry.getKey(), entry.getValue());
             printed++;
             if (printed == 10) {
                 break;
             }
         }
-        logger.info("                        Total {} aircraft types", sortedEntries.size());
+        log.info("                        Total {} aircraft types", top10.size());
     }
 }
