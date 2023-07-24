@@ -224,14 +224,12 @@ public class IncrementalProcessor {
 
             ReportInfo lastProcessedReport = pilotContext.getLastIncrementallyProcessedReport();
 
-            ReportInfo processTrackSinceReport = timeline.getFirstReport();
-            if (lastProcessedReport != null) {
-                String calculatedDateTime = NewMethods.minusHours(lastProcessedReport, BASE_TRACK_LENGTH_HOURS);
-                processTrackSinceReport = timeline.findPreviousReport(calculatedDateTime);
-
-                if (processTrackSinceReport == null) {
-                    processTrackSinceReport = timeline.getFirstReport();
-                }
+            String estimatedTrackSinceReport = lastProcessedReport != null
+                    ? NewMethods.minusHours(lastProcessedReport, BASE_TRACK_LENGTH_HOURS)
+                    : NewMethods.minusHours(processorTillProcessReport, BASE_TRACK_LENGTH_HOURS);
+            ReportInfo processTrackSinceReport = timeline.findPreviousReport(estimatedTrackSinceReport);
+            if (processTrackSinceReport == null) {
+                processTrackSinceReport = timeline.getFirstReport();
             }
 
             List<Flight1> oldFlights = loadedPilotInfo.getFlights();
