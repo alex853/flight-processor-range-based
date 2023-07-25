@@ -3,10 +3,7 @@ package net.simforge.flight.processor.app;
 import com.google.common.collect.Lists;
 import net.simforge.flight.core.storage.FlightStorageService;
 import net.simforge.flight.core.storage.impl.LocalGsonFlightStorage;
-import net.simforge.flight.processor.rangebased.Flight1;
-import net.simforge.flight.processor.rangebased.LastProcessedReports;
-import net.simforge.flight.processor.rangebased.MemoryReport;
-import net.simforge.flight.processor.rangebased.UnknownAircraftTypes;
+import net.simforge.flight.processor.rangebased.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +44,8 @@ public class Controller {
         memoryReport.put("total", MemoryReport.getTotalMB());
         memoryReport.put("max", MemoryReport.getMaxMB());
         status.put("memory", memoryReport);
+
+        status.put("trackStats", IncrementalProcessor.trackStats);
 
         return ResponseEntity.ok(status);
     }

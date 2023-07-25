@@ -21,6 +21,7 @@ public class IncrementalProcessor {
     public static final int BASE_TRACK_LENGTH_HOURS = 18;
     public static final int MAX_TRACK_LENGHT_HOURS = 24;
     public static final int REMOVE_IF_OFFLINE_HOURS = 1;
+    public static Map<String, Integer> trackStats;
 
     private final ReportSessionManager sessionManager;
     private final ReportOpsService reportOpsService;
@@ -184,8 +185,16 @@ public class IncrementalProcessor {
 
             int tracksCount = loadedPilots.size();
             int positionsCount = loadedPilots.values().stream().mapToInt(loadedPilotInfo -> loadedPilotInfo.getTrackData().size()).sum();
+            int maxPositions = loadedPilots.values().stream().mapToInt(loadedPilotInfo -> loadedPilotInfo.getTrackData().size()).max().orElse(0);
 
-            logger.info("Track Data - Stats: tracks {}, positions {}, positions per track {}", tracksCount, positionsCount, positionsCount / Math.max(tracksCount, 1));
+            logger.info("Track Data - Stats: tracks {}, positions {}, positions per track {}, longest track {}", tracksCount, positionsCount, positionsCount / Math.max(tracksCount, 1), maxPositions);
+
+            Map<String, Integer> trackStats = new TreeMap<>();
+            trackStats.put("tracks", tracksCount);
+            trackStats.put("positions", positionsCount);
+            trackStats.put("avgPositions", positionsCount / Math.max(tracksCount, 1));
+            trackStats.put("longestTrack", maxPositions);
+            IncrementalProcessor.trackStats = trackStats;
         }
     }
 
