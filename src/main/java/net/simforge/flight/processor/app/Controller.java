@@ -5,6 +5,7 @@ import net.simforge.flight.core.storage.FlightStorageService;
 import net.simforge.flight.core.storage.impl.LocalGsonFlightStorage;
 import net.simforge.flight.processor.rangebased.Flight1;
 import net.simforge.flight.processor.rangebased.LastProcessedReports;
+import net.simforge.flight.processor.rangebased.MemoryReport;
 import net.simforge.flight.processor.rangebased.UnknownAircraftTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 @RestController
 @RequestMapping("service/v1")
@@ -33,11 +35,18 @@ public class Controller {
         Map<String, Object> status = new HashMap<>();
 
         int processedReports = LastProcessedReports.reportsProcessedInLast10Mins();
-        status.put("processedReportsInLast10Mins", processedReports);
+        status.put("processedReports", processedReports);
 
         boolean ok = processedReports >= 4;
 
         status.put("status", (ok ? "OK" : "FAIL"));
+
+        Map<String, Integer> memoryReport = new TreeMap<>();
+        memoryReport.put("used", MemoryReport.getUsedMB());
+        memoryReport.put("free", MemoryReport.getFreeMB());
+        memoryReport.put("total", MemoryReport.getTotalMB());
+        memoryReport.put("max", MemoryReport.getMaxMB());
+        status.put("memory", memoryReport);
 
         return ResponseEntity.ok(status);
     }

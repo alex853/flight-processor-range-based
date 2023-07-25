@@ -186,8 +186,6 @@ public class IncrementalProcessor {
             int positionsCount = loadedPilots.values().stream().mapToInt(loadedPilotInfo -> loadedPilotInfo.getTrackData().size()).sum();
 
             logger.info("Track Data - Stats: tracks {}, positions {}, positions per track {}", tracksCount, positionsCount, positionsCount / Math.max(tracksCount, 1));
-
-            printMemoryReport();
         }
     }
 
@@ -287,24 +285,4 @@ public class IncrementalProcessor {
             trackData.removePositionsOlderThanTimestamp(removalThreshold);
         }
     }
-
-    private static long lastMemoryReportTs;
-
-    private static void printMemoryReport() {
-        if (lastMemoryReportTs + 10 * 60 * 1000 < System.currentTimeMillis()) {
-            Runtime runtime = Runtime.getRuntime();
-            long mm = runtime.maxMemory();
-            long fm = runtime.freeMemory();
-            long tm = runtime.totalMemory();
-            String str = "Memory report: Used = " + toMB(tm - fm) + ", " + "Free = " + toMB(fm) + ", " + "Total = " + toMB(tm) + ", " + "Max = " + toMB(mm);
-            logger.info(str);
-
-            lastMemoryReportTs = System.currentTimeMillis();
-        }
-    }
-
-    private static String toMB(long size) {
-        return Long.toString(size / 0x100000L);
-    }
-
 }

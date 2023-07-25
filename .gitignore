@@ -32,3 +32,4 @@ starts/
 log/
 *.lck
 range-*
+storage/

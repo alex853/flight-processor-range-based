@@ -85,6 +85,8 @@ public class RunIncrementalProcess {
             }
         }
 
+        MemoryReport.print();
+
         UnknownAircraftTypes.printStats();
 
         BM.logPeriodically(true);
