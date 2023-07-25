@@ -45,7 +45,7 @@ jobs:
           name: Deploy Over SSH
           command: |
             echo '${SSH_KNOWN_HOST}' >> ~/.ssh/known_hosts
-            scp -o StrictHostKeyChecking=no -P ${SSH_PORT} -r ~/repo/build/libs/*.jar ${SSH_USER}@${SSH_HOST}:~/circleciuploads/network-view-map-backend/network-view-map-backend.jar
+            scp -o StrictHostKeyChecking=no -P ${SSH_PORT} -r ~/repo/build/libs/*.jar ${SSH_USER}@${SSH_HOST}:~/circleciuploads/flight-processor-range-based/flight-processor-range-based.jar
 
 workflows:
   version: 2
