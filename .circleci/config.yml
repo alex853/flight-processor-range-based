@@ -32,7 +32,7 @@ jobs:
           keys:
             - v1-dependencies-{{ checksum "build.gradle" }}
             - v1-dependencies-
-      - run: gradle build
+      - run: gradle bootJar
       - save_cache:
           paths:
             - ~/.gradle
