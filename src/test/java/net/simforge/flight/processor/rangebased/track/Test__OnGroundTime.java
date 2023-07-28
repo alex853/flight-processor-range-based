@@ -41,13 +41,31 @@ public class Test__OnGroundTime extends AbstractTrackTest {
     }
 
     @Test
-    public void test__just_connected_shortly_on_ground_without_flying__no_fail_expected__no_flights_expected() throws IOException {
+    public void test__just_connected_shortly_on_ground_without_flying__no_fail_expected__on_ground_only_expected() throws IOException {
         List<Flight1> flights = process(811636,
                 "/snapshots/pilot-811636_from-1000000_amount-127321.csv",
                 "20200429082154",
                 "20200429092854");
 
-        assertEquals(0, flights.size());
+        assertEquals(1, flights.size());
+
+        Flight1 flight1 = flights.get(0);
+
+        assertEquals(Track1.TrackingMode.OnGroundOnly.name(), flight1.getTrackingMode());
+    }
+
+    @Test
+    public void test__connected_on_ground_till_end_of_track__like_being_online_and_preparing_for_a_flight__on_ground_only_expected() throws IOException {
+        List<Flight1> flights = process(811636,
+                "/snapshots/pilot-811636_from-1000000_amount-127321.csv",
+                "20200429092854",
+                "20200429102654");
+
+        assertEquals(1, flights.size());
+
+        Flight1 flight1 = flights.get(0);
+
+        assertEquals(Track1.TrackingMode.OnGroundOnly.name(), flight1.getTrackingMode());
     }
 
     @Test

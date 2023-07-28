@@ -18,7 +18,7 @@ public class Test__Pilot811636 extends AbstractTrackTest {
         List<Flight1> flights = process(pilotNumber,
                 "/snapshots/pilot-811636_from-1000000_amount-127321.csv");
 
-        assertEquals(104, flights.size());
+        assertEquals(154, flights.size());
     }
 
     @Test

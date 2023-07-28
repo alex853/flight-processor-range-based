@@ -7,10 +7,7 @@ import net.simforge.commons.misc.JavaTime;
 import net.simforge.flight.core.EllipseCriterion;
 import net.simforge.flight.core.Flightplan;
 import net.simforge.networkview.core.Position;
-import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.ReportUtils;
-import net.simforge.networkview.core.report.persistence.Report;
-import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
 import net.simforge.refdata.aircrafts.apd.AircraftPerformance;
 import net.simforge.refdata.aircrafts.apd.AircraftPerformanceDatabase;
 
@@ -38,13 +35,13 @@ public class Track1 {
             track.trackData.addAll(positions);
 
             track.buildRanges();
-//            track.printRanges("Stage 0 - ranges prepared");
+            track.printRanges("Stage 0 - ranges prepared");
             track.buildCompleteFlights();
-//            track.printRanges("Stage 1 - complete flights processed");
+            track.printRanges("Stage 1 - complete flights processed");
             track.buildIncompleteFlights();
-//            track.printRanges("Stage 2 - incomplete flights processed");
+            track.printRanges("Stage 2 - incomplete flights processed");
             track.joinOnGroundRanges();
-//            track.printRanges("Stage 3 - on-groung ranges joined");
+            track.printRanges("Stage 3 - on-ground ranges joined");
 
             return track;
         }
@@ -92,7 +89,7 @@ public class Track1 {
         flight1.setLanding(landingPosition != null ? Flight1.position(landingPosition) : null);
         flight1.setLastSeen(Flight1.position(lastSeenPosition));
 
-        flight1.setComplete(trackedFlight.trackingMode != TrackingMode.Incomplete);
+        flight1.setComplete(trackedFlight.trackingMode != TrackingMode.Incomplete && trackedFlight.trackingMode != TrackingMode.OnGroundOnly);
         flight1.setTrackingMode(trackedFlight.trackingMode.name());
 
         return flight1;
@@ -517,6 +514,16 @@ public class Track1 {
 
                     // todo ak3 limit on-ground time by some time (30 mins?)
                     // todo ak3 try to look at actual taxi time?
+                } else {
+                    // just connected and on-ground
+                    TrackedFlight newFlight = TrackedFlight.first2last(
+                            range.getPreviousEvent(),
+                            null,
+                            null,
+                            range.getNextEvent(),
+                            TrackingMode.OnGroundOnly);
+                    newFlight.markRanges();
+                    flights.add(newFlight);
                 }
             }
         }
@@ -984,6 +991,7 @@ public class Track1 {
         Ideal,
         TAS,
         Ellipse,
-        Incomplete
+        Incomplete,
+        OnGroundOnly
     }
 }

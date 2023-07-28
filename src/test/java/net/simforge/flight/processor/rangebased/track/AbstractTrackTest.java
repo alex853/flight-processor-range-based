@@ -10,7 +10,6 @@ import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
 import net.simforge.networkview.core.report.snapshot.CsvSnapshotReportOpsService;
-import org.junit.Ignore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,8 +18,6 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-@Ignore
-@Deprecated
 public abstract class AbstractTrackTest {
 
     protected static void assertFlightRoute(final Flight1 flight,
@@ -56,10 +53,10 @@ public abstract class AbstractTrackTest {
     }
 
     protected static void assertFlightTimes(Flight1 flight, String firstSeenTime, String takeoffTime, String landingTime, String lastSeenTime) {
-        AbstractTrackTest.assertTime(firstSeenTime, flight.getFirstSeen());
-        AbstractTrackTest.assertTime(takeoffTime, flight.getTakeoff());
-        AbstractTrackTest.assertTime(landingTime, flight.getLanding());
-        AbstractTrackTest.assertTime(lastSeenTime, flight.getLastSeen());
+        assertTime(firstSeenTime, flight.getFirstSeen());
+        assertTime(takeoffTime, flight.getTakeoff());
+        assertTime(landingTime, flight.getLanding());
+        assertTime(lastSeenTime, flight.getLastSeen());
     }
 
     protected static void assertTime(String time, Flight1.Position1 position) {

@@ -93,4 +93,31 @@ public class Test__Pilot913904 extends AbstractTrackTest {
         assertEquals(3.85, flight.getFlightTime(), 0.05);
         assertEquals(3.25, flight.getAirTime(), 0.05);
     }
+
+    @Test
+    public void test__2023_07_22__lmic_bikf() throws IOException {
+        List<Flight1> flights = process(pilotNumber,
+                "/snapshots/pilot-913904_2023-07-22.csv");
+
+        assertEquals(1, flights.size());
+
+        Flight1 flight = flights.get(0);
+        assertFlight(flight,
+                "ICE21V",
+                "B752",
+                "TFFIU",
+                "LIMC",
+                "BIKF",
+                true,
+                Track1.TrackingMode.Ideal);
+
+        assertFlightTimes(flight,
+                "07:20",
+                "07:44",
+                "11:36",
+                "11:52");
+
+        assertEquals(4.50, flight.getFlightTime(), 0.05);
+        assertEquals(3.90, flight.getAirTime(), 0.05);
+    }
 }

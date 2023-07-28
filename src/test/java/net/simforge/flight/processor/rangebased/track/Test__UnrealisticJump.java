@@ -18,7 +18,7 @@ public class Test__UnrealisticJump extends AbstractTrackTest {
                 "20200610080659",
                 "20200610103259");
 
-        assertEquals(3, flights.size());
+        assertEquals(4, flights.size());
 
         Flight1 flight = flights.get(0);
 
