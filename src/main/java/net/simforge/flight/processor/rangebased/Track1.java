@@ -631,6 +631,18 @@ public class Track1 {
             return false;
         }
 
+        Double maxEndurance = performance.get().getMaximumEndurance();
+        if (maxEndurance == null) {
+            return false;
+        }
+
+        // 1.25 coeff is just a reserve
+        // also it checks length of offline(!) against of max endurance
+        // more correct way to check time since takeoff
+        if (hours > maxEndurance * 1.25) {
+            return false;
+        }
+
         Integer ias = performance.get().getCruiseIasAtCruiseCeiling();
         if (ias == null) {
             return false;
@@ -645,10 +657,10 @@ public class Track1 {
             ias = (int) (ias * 0.8); // climb or descend speed
         }
 
-        // todo ak3 max duration of offline segment?
         int minTas = (int) (Airspeed.iasToTas(ias, minAltitude) * 0.66);
         int maxTas = (int) (Airspeed.iasToTas(ias, maxAltitude) * 1.33);
 
+        //noinspection RedundantIfStatement
         if (minTas <= groundspeed && groundspeed <= maxTas) {
             // we can join two flying ranges divided by one offline range
             return true;
@@ -687,6 +699,14 @@ public class Track1 {
 
                 // can we join lastFlyingRange and nextFlyingRange
                 Position nextPosition = nextFlyingRange.getFirstPosition();
+                Flightplan nextFlightplan = Flightplan.fromPosition(nextPosition);
+                if (nextFlightplan == null || flightplan == null) {
+                    return null;
+                }
+                if (!Objects.equals(flightplan.getDeparture(), nextFlightplan.getDeparture())
+                    || !Objects.equals(flightplan.getDestination(), nextFlightplan.getDestination())) {
+                    return null;
+                }
 
                 if (criterion.meets(nextPosition)) {
                     canWeSkipThisRange = true;

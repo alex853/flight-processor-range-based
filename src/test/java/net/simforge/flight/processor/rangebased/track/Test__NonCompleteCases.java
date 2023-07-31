@@ -50,4 +50,12 @@ public class Test__NonCompleteCases extends AbstractTrackTest {
                 false,
                 Track1.TrackingMode.Incomplete);
     }
+
+    @Test
+    public void test__cessna_with_30_hours_flight__should_not_be_allowed() throws IOException {
+        List<Flight1> flights = process(pilotNumber,
+                "/snapshots/pilot-1001023_2023-07-15_2023-07-16.csv");
+
+        assertEquals(2, flights.size());
+    }
 }
