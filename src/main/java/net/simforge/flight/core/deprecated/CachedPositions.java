@@ -10,6 +10,7 @@ import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Deprecated
 public class CachedPositions {
     private static final Map<Integer, PilotTrack> tracks = new HashMap<>();
 

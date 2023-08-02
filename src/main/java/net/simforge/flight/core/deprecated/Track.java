@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Deprecated
 class Track {
     private int pilotNumber;
     private List<Position> trackData = new ArrayList<>();

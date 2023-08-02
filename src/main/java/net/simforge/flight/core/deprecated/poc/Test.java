@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Deprecated
 public class Test {
     public static void main(String[] args) throws IOException {
         // load pilot track for some range
