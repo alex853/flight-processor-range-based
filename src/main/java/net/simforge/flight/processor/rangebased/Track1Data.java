@@ -59,6 +59,7 @@ public class Track1Data {
         for (Report report : reports) {
             ReportPilotPosition reportPilotPosition = reportPilotPositionByReport.get(report.getReport());
             Position position = reportPilotPosition != null ? Position.create(reportPilotPosition) : Position.createOfflinePosition(report);
+            position = Position.compactify(position);
             trackData.add(position);
         }
     }

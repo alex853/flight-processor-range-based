@@ -35,13 +35,13 @@ public class Track1 {
             track.trackData.addAll(positions);
 
             track.buildRanges();
-            track.printRanges("Stage 0 - ranges prepared");
+//            track.printRanges("Stage 0 - ranges prepared");
             track.buildCompleteFlights();
-            track.printRanges("Stage 1 - complete flights processed");
+//            track.printRanges("Stage 1 - complete flights processed");
             track.buildIncompleteFlights();
-            track.printRanges("Stage 2 - incomplete flights processed");
+//            track.printRanges("Stage 2 - incomplete flights processed");
             track.joinOnGroundRanges();
-            track.printRanges("Stage 3 - on-ground ranges joined");
+//            track.printRanges("Stage 3 - on-ground ranges joined");
 
             return track;
         }
