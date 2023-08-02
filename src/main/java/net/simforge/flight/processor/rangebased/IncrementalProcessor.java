@@ -130,7 +130,7 @@ public class IncrementalProcessor {
                     }
 
                     if (!pilotsNotSeenInThisReport.isEmpty()) {
-                        logger.info("            Track Data - {} - Disappeared pilots: {}", nextReport.getReport(), addedPilots);
+                        logger.info("            Track Data - {} - Disappeared pilots: {}", nextReport.getReport(), pilotsNotSeenInThisReport);
                     }
 
                     newLastProcessedReport = nextReport;
