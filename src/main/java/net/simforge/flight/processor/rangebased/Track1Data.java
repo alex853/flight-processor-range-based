@@ -6,12 +6,16 @@ import net.simforge.networkview.core.report.ReportInfo;
 import net.simforge.networkview.core.report.ReportRange;
 import net.simforge.networkview.core.report.persistence.Report;
 import net.simforge.networkview.core.report.persistence.ReportPilotPosition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Track1Data {
+    private static final Logger log = LoggerFactory.getLogger(Track1Data.class);
+
     private final int pilotNumber;
     private List<Position> trackData = new ArrayList<>();
 
@@ -72,27 +76,34 @@ public class Track1Data {
         try (BMC ignored = BMC.start("Track1Data.getPositions")) {
             Optional<ReportRange> existingRange = getRange();
             if (!existingRange.isPresent()) {
+                log.warn("Pilot {} - getPositions - no existing range", pilotNumber);
                 return Optional.empty();
             }
 
+            //noinspection unchecked
             int left = Collections.binarySearch(trackData, range.getSince(), trackDataComparator);
+            //noinspection unchecked
             int right = Collections.binarySearch(trackData, range.getTill(), trackDataComparator);
 
             if (left < 0) {
                 left = -(left + 1);
                 if (left == 0) {
-                    return Optional.empty(); // "since" report is earlier that the earliest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'since' report is earlier that the earliest - no positions will be returned", pilotNumber);
+                    return Optional.empty(); // 'since' report is earlier that the earliest - no positions will be returned
                 } else if (left == trackData.size()) {
-                    return Optional.empty(); // "since" report is sooner that the soonest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'since' report is sooner that the soonest - no positions will be returned", pilotNumber);
+                    return Optional.empty(); // 'since' report is sooner that the soonest - no positions will be returned
                 }
             }
 
             if (right < 0) {
                 right = -(right + 1);
                 if (right == 0) {
-                    return Optional.empty(); // "till" report is earlier that the earliest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'till' report is earlier that the earliest - no positions will be returned", pilotNumber);
+                    return Optional.empty(); // 'till' report is earlier that the earliest - no positions will be returned
                 } else if (right == trackData.size()) {
-                    return Optional.empty(); // "till" report is sooner that the soonest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'till' report is sooner that the soonest - no positions will be returned", pilotNumber);
+                    return Optional.empty(); // 'till' report is sooner that the soonest - no positions will be returned
                 }
             }
 
@@ -116,6 +127,7 @@ public class Track1Data {
     }
 
     public void removePositionsOlderThanTimestamp(String thresholdTimestamp) {
+        //noinspection unchecked
         int index = Collections.binarySearch(trackData, thresholdTimestamp, trackDataComparator);
 
         if (index < 0) {
@@ -151,6 +163,7 @@ public class Track1Data {
         return false;
     }
 
+    @SuppressWarnings("rawtypes")
     private static final Comparator trackDataComparator = new Comparator() {
         @Override
         public int compare(Object o1, Object o2) {
