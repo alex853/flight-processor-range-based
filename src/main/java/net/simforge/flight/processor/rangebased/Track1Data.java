@@ -76,7 +76,6 @@ public class Track1Data {
         try (BMC ignored = BMC.start("Track1Data.getPositions")) {
             Optional<ReportRange> existingRange = getRange();
             if (!existingRange.isPresent()) {
-                log.warn("Pilot {} - getPositions - no existing range", pilotNumber);
                 return Optional.empty();
             }
 
@@ -88,22 +87,22 @@ public class Track1Data {
             if (left < 0) {
                 left = -(left + 1);
                 if (left == 0) {
-                    log.warn("Pilot {} - getPositions - 'since' report is earlier that the earliest - no positions will be returned", pilotNumber);
-                    return Optional.empty(); // 'since' report is earlier that the earliest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'since' report {} is earlier than the earliest {} - no positions will be returned", pilotNumber, range.getSince().getReport(), trackData.get(0).getReportInfo().getReport());
+                    return Optional.empty(); // 'since' report is earlier than the earliest - no positions will be returned
                 } else if (left == trackData.size()) {
-                    log.warn("Pilot {} - getPositions - 'since' report is sooner that the soonest - no positions will be returned", pilotNumber);
-                    return Optional.empty(); // 'since' report is sooner that the soonest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'since' report {} is sooner than the soonest {} - no positions will be returned", pilotNumber, range.getSince().getReport(), trackData.get(trackData.size() - 1).getReportInfo().getReport());
+                    return Optional.empty(); // 'since' report is sooner than the soonest - no positions will be returned
                 }
             }
 
             if (right < 0) {
                 right = -(right + 1);
                 if (right == 0) {
-                    log.warn("Pilot {} - getPositions - 'till' report is earlier that the earliest - no positions will be returned", pilotNumber);
-                    return Optional.empty(); // 'till' report is earlier that the earliest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'till' report {} is earlier than the earliest {} - no positions will be returned", pilotNumber, range.getTill().getReport(), trackData.get(0).getReportInfo().getReport());
+                    return Optional.empty(); // 'till' report is earlier than the earliest - no positions will be returned
                 } else if (right == trackData.size()) {
-                    log.warn("Pilot {} - getPositions - 'till' report is sooner that the soonest - no positions will be returned", pilotNumber);
-                    return Optional.empty(); // 'till' report is sooner that the soonest - no positions will be returned
+                    log.warn("Pilot {} - getPositions - 'till' report {} is sooner than the soonest {} - no positions will be returned", pilotNumber, range.getSince().getReport(), trackData.get(trackData.size() - 1).getReportInfo().getReport());
+                    return Optional.empty(); // 'till' report is sooner than the soonest - no positions will be returned
                 }
             }
 
